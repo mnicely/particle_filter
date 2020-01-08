@@ -80,6 +80,36 @@ Median   Mean    StdDev
 55       51      5
 ```
 
+### Post-processing
+Root Mean Square Error can be evaluated with the MATLAB script [analysis.m](https://github.com/mnicely/particle_filter/blob/master/data/analysis.m).
+
+```matlab
+Check GPU
+    'RMSE for 65536 for Systematic'
+
+    0.3119    0.2060    0.1792    0.1553
+
+    'RMSE for 65536 for Stratified'
+
+    0.3112    0.2057    0.1791    0.1553
+
+    'RMSE for 65536 for MetropolisC2'
+
+    0.3125    0.2069    0.1801    0.1559
+
+    'RMSE for 1048576 for Systematic'
+
+    0.3119    0.2061    0.1792    0.1554
+
+    'RMSE for 1048576 for Stratified'
+
+    0.3116    0.2060    0.1792    0.1554
+
+    'RMSE for 1048576 for MetropolisC2'
+
+    0.3128    0.2062    0.1793    0.1553
+```
+
 ## TODOs
 - Add performance results for TX2 and Xavier platforms
 - Add [Marginal Particle Filter](http://user.it.uu.se/~thosc112/pubpdf/schongn2005.pdf) implementation
