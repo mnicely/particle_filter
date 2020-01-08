@@ -22,8 +22,8 @@ Linear/Nonlinear State-space Models](http://user.it.uu.se/~thosc112/pubpdf/schon
 
 ## Built with
 This application uses the following toolsets:
-- [CUDA 9.0+](https://developer.nvidia.com/cuda-downloads)
-- [CUB 1.8.0](https://nvlabs.github.io/cub/)
+- [CUDA 9.0 or later](https://developer.nvidia.com/cuda-downloads)
+- [CUB 1.7.5 or later](https://nvlabs.github.io/cub/)
 - [NVTX](https://devblogs.nvidia.com/cuda-pro-tip-generate-custom-application-profile-timelines-nvtx/)
 - C++14
 - LAPACKE
@@ -31,13 +31,15 @@ This application uses the following toolsets:
 - Boost Program Options
 
 ## Tested on
-This application was successfully tested on the following hardware:
+This application was successfully tested on the following:
 - Intel i7-8700K
 - NVIDIA GeForce RTX 2080
 - NVIDIA GeForce GTX 1080
 - NVIDIA GeForce GTX 980
 - NVIDIA Titan V
 - NVIDIA Titan RTX
+- Ubuntu 16.04/18.04
+- CUDA 9.X/10.X
 
 ## Usage
 This application has the following options:
