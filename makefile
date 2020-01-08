@@ -1,13 +1,12 @@
-CUDA_V		:=10.2
 CPP			:=g++
-NVCC		:=/usr/local/cuda-$(CUDA_V)/bin/nvcc
+NVCC		:=/usr/local/cuda/bin/nvcc
 INC			:=-I/usr/local/cuda/samples/common/inc
 LIBS 		:=-llapacke -lopenblas -lboost_program_options
 ARCHES		:=-gencode arch=compute_70,code=\"compute_70,sm_70\"
 SRCDIR		:=src
 OBJDIR		:=obj
 APP			:=filters
-CFLAGS		:=-std=c++14  -O3 --use_fast_math
+CFLAGS		:=-std=c++14 -O3 --use_fast_math
 NVTX		:=
 
 ifdef NVTX # NVTX labeling/profiling
