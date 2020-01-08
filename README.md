@@ -2,12 +2,14 @@
 This GPU accelerated particle filter
 
 ## Prerequisites
-The build process assumes compute capability (CC) 7.0 or greater.
+The build process assumes the following:
+- CUDA is installed at ```/usr/local/cuda/```.
+- Compute capability (CC) 7.0.
 
-An additional CC can easily be added by appending to ARCHES in the makefile.
+An additional CC can easily be added by appending to **ARCHES** in the makefile.
 
 ## Performance
-Come soon
+Come soon!
 
 ## Documentation
 In depth documentation can be found in the following papers:
@@ -45,7 +47,7 @@ Program Options:
   -r [ --resampling ] arg (=0)     Resampling method: Systmatic = 0, Stratified = 1, Metropolis = 2
   -m [ --mcs ] arg (=5)            Number of Monte Carlos to execute
   -c [ --create ]                  Create truth data
-  -t [ --truth ]                   Use precalculate truth data
+  -t [ --truth ]                   Use precalculated truth data
   -g [ --gpu ]                     Use GPU or CPU
   -h [ --help ]                    Display help menu.
 
@@ -78,5 +80,4 @@ Median   Mean    StdDev
 
 ## TODOs
 - Add performance results for TX2 and Xavier platforms
-- Remove CBLAS from serial version to increase performance
 - Add [Marginal Particle Filter](http://user.it.uu.se/~thosc112/pubpdf/schongn2005.pdf) implementation
