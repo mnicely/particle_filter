@@ -40,6 +40,7 @@ This application was successfully tested on the following:
 - NVIDIA Titan RTX
 - Ubuntu 16.04/18.04
 - CUDA 9.X/10.X
+- CUB 1.7.5/1.8.0
 
 ## Usage
 This application has the following options:
