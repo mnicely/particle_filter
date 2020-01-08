@@ -81,7 +81,7 @@ Median   Mean    StdDev
 ```
 
 ### Post-processing
-Root Mean Square Error can be evaluated with the MATLAB script [analysis.m](https://github.com/mnicely/particle_filter/blob/master/data/analysis.m).
+The root mean square error of all 4 states estimates can be evaluated with the MATLAB script [analysis.m](https://github.com/mnicely/particle_filter/blob/master/data/analysis.m).
 
 ```matlab
 Check GPU
