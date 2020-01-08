@@ -32,6 +32,7 @@ This application uses the following toolsets:
 
 ## Tested on
 This application was successfully tested on the following:
+- Intel i7-5960X
 - Intel i7-8700K
 - NVIDIA GeForce RTX 2080
 - NVIDIA GeForce GTX 1080
