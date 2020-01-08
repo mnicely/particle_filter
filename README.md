@@ -1,5 +1,5 @@
 # Particle Filter
-This GPU accelerated particle filter
+GPU accelerated particle filter with 4 system states and 2 measurement states. Models are based on research by [Thomas Schon](http://user.it.uu.se/~thosc112/index.html) and MATLAB code can be found [here](http://user.it.uu.se/~thosc112/research/rao-blackwellized-particle.html).
 
 ## Prerequisites
 The build process assumes the following:
@@ -53,7 +53,7 @@ Program Options:
 
 ```
 
-An example script can be found [here]()
+An example script can be found [here](https://github.com/mnicely/particle_filter/blob/master/scripts/example_script.sh)
 
 
 ### Profiling with NVTX
