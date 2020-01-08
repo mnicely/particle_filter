@@ -1,5 +1,7 @@
 # Particle Filter
-GPU accelerated particle filter with 4 system states and 2 measurement states. Models are based on research by [Thomas Schon](http://user.it.uu.se/~thosc112/index.html) and MATLAB code can be found [here](http://user.it.uu.se/~thosc112/research/rao-blackwellized-particle.html).
+GPU accelerated particle filter with 4 system states and 2 measurement states. 
+
+Models are based on research by [Thomas Schon](http://user.it.uu.se/~thosc112/index.html) and MATLAB code can be found [here](http://user.it.uu.se/~thosc112/research/rao-blackwellized-particle.html).
 
 ## Prerequisites
 The build process assumes the following:
