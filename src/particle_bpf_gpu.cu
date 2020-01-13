@@ -56,7 +56,7 @@ __global__ void __launch_bounds__( kTAI )
                       unsigned long long int const seed,
                       T *__restrict__ particle_state_new ) {
 
-    auto const block = cg::this_thread_block( );
+    auto const block { cg::this_thread_block( ) };
 
     typedef cub::CacheModifiedInputIterator<cub::LOAD_LDG, T> InputItr;
     typedef cub::BlockLoad<T, kTAI, kSysDim, cub::BLOCK_LOAD_WARP_TRANSPOSE>
@@ -117,7 +117,7 @@ __global__ void __launch_bounds__( kTME )
                        T *__restrict__ particle_weights,
                        T *__restrict__ particle_state ) {
 
-    auto const block = cg::this_thread_block( );
+    auto const block { cg::this_thread_block( ) };
 
     /*
      * Sum particle weights using BlockReduce in this kernel
@@ -139,7 +139,7 @@ __global__ void __launch_bounds__( kTME )
         typename BlockReduce::TempStorage reduce;
     } temp_storage;
 
-    unsigned int loop = blockIdx.x * blockDim.x * kSysDim;
+    unsigned int loop { blockIdx.x * blockDim.x * kSysDim };
 
     for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
           tid < num_particles;
@@ -172,7 +172,7 @@ __global__ void __launch_bounds__( kTME )
             }
         }
 
-        float particle_weight = expf( sum * -0.5f );
+        float particle_weight { expf( sum * -0.5f ) };
 
         particle_weights[tid] = particle_weight;
 
@@ -223,9 +223,9 @@ __global__ void __launch_bounds__( kTCE )
                                                // warps (1024 threads)
     __shared__ T s_final_reduce[kSysDim];
 
-    unsigned int const warp_id = threadIdx.x >> 5;
+    unsigned int const warp_id { threadIdx.x >> 5 };
 
-    unsigned int loop = blockIdx.x * blockDim.x * kSysDim;
+    unsigned int loop { blockIdx.x * blockDim.x * kSysDim };
 
     for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
           tid < num_particles;
@@ -611,14 +611,14 @@ __global__ void __launch_bounds__( kTPT )
                                T const *__restrict__ particle_state,
                                T *__restrict__ particle_state_new ) {
 
-    auto const block = cg::this_thread_block( );
+    auto const block { cg::this_thread_block( ) };
 
     typedef cub::BlockStore<T, kTPT, kSysDim, cub::BLOCK_STORE_WARP_TRANSPOSE>
         BlockStore;
 
     __shared__ typename BlockStore::TempStorage temp_storage;
 
-    unsigned int loop = blockIdx.x * blockDim.x * kSysDim;
+    unsigned int loop { blockIdx.x * blockDim.x * kSysDim };
 
     for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
           tid < num_particles;
