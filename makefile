@@ -10,7 +10,6 @@ CFLAGS		:=-std=c++14 -O3 --use_fast_math
 NVTX		:=
 
 ifdef NVTX # NVTX labeling/profiling
-	LIBS		+= -lnvToolsExt
 	CFLAGS		+= -DUSE_NVTX
 endif
 

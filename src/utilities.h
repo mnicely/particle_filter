@@ -595,7 +595,7 @@ inline void WriteDataHeader( std::string const &        filename,
 }
 
 #ifdef USE_NVTX
-#include "nvToolsExt.h"
+#include "nvtx3/nvToolsExt.h"
 
 uint32_t const colors[] { 0x0000ff00, 0x0f0000ff, 0x000000ff,
                           0x00ffff00, 0x00ff00ff, 0x0000ffff,
