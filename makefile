@@ -1,6 +1,6 @@
 CPP			:=g++
 NVCC		:=/usr/local/cuda/bin/nvcc
-INC			:=-I/usr/local/cuda/samples/common/inc
+INC			:=
 LIBS 		:=-llapacke -lopenblas -lboost_program_options
 ARCHES		:=-gencode arch=compute_70,code=\"compute_70,sm_70\"
 SRCDIR		:=src

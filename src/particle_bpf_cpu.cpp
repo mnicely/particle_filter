@@ -15,13 +15,13 @@
  * @n * NVCC Compiler: CUDA Toolkit 10.0 or later
  */
 
-#include <algorithm>  // std::transform, std::remove_if, std::nth_element, std::fill, std::for_each
+#include <algorithm>   // std::transform, std::remove_if, std::nth_element, std::fill, std::for_each
 #include <chrono>      // std::chrono
 #include <cmath>       // std::sqrt, std::exp
 #include <functional>  // std::multiplies
 #include <iterator>    // std::vector<>::const_iterator
-#include <numeric>  // std::accumulate, std::inner_product, std::partial_sum, std::iota
-#include <random>  // std::default_random_engine, std::random_device, std::uniform_real_distribution
+#include <numeric>     // std::accumulate, std::inner_product, std::partial_sum, std::iota
+#include <random>      // std::default_random_engine, std::random_device, std::uniform_real_distribution
 
 #include "models.h"
 #include "particle_bpf_cpu.h"
@@ -29,9 +29,8 @@
 namespace filters {
 
 ParticleBpfCpu::ParticleBpfCpu(
-    utility::FilterInfo const &filter_info,
-    std::function<void( int const &idx, float *current_meas_data )> const
-        &truth_meas_func_ptr ) :
+    utility::FilterInfo const &                                            filter_info,
+    std::function<void( int const &idx, float *current_meas_data )> const &truth_meas_func_ptr ) :
     // clang-format off
     kSysDim { utility::kSysDim }, 
     kMeasDim { utility::kMeasDim },
@@ -50,9 +49,7 @@ ParticleBpfCpu::ParticleBpfCpu(
 
 ParticleBpfCpu::~ParticleBpfCpu( ) noexcept {}
 
-void ParticleBpfCpu::Initialize(
-    int const &                      mcs,
-    std::vector<std::vector<float>> &timing_results ) {
+void ParticleBpfCpu::Initialize( int const &mcs, std::vector<std::vector<float>> &timing_results ) {
 
     RANGE( "ParticleBpfCpu", color++ )
 
@@ -66,10 +63,8 @@ void ParticleBpfCpu::Initialize(
     for ( int i = 0; i < kSamples; i++ ) {
         auto start = std::chrono::high_resolution_clock::now( );
         UpdateTimeStep( );
-        auto end = std::chrono::high_resolution_clock::now( );
-        auto nanos =
-            std::chrono::duration_cast<std::chrono::microseconds>( end - start )
-                .count( );
+        auto end       = std::chrono::high_resolution_clock::now( );
+        auto nanos     = std::chrono::duration_cast<std::chrono::microseconds>( end - start ).count( );
         time_vector[i] = static_cast<float>( nanos );
         time_step++;  // Increment step
     }
@@ -102,9 +97,7 @@ void ParticleBpfCpu::InitializeParticles( ) {
     utility::Matrix matrix_mult_result { kSysDim, kSysDim };
 
     // Generate random numbers
-    utility::GenerateRandomNum( random_numbers,
-                                models::kSysDistrLowerLimit,
-                                models::kSysDistrUpperLimit );
+    utility::GenerateRandomNum( random_numbers, models::kSysDistrLowerLimit, models::kSysDistrUpperLimit );
 
     // For all particle sets
     for ( int i = 0; i < kNumParticles; i++ ) {
@@ -115,15 +108,12 @@ void ParticleBpfCpu::InitializeParticles( ) {
         }
 
         // Perform matrix multiplication squared noise covariance matrix times
-        utility::MatrixMult(
-            matrix_mult_result,
-            initial_cov,
-            subset_random_numbers );  // <--- Error here with OpenMP
+        utility::MatrixMult( matrix_mult_result, initial_cov,
+                             subset_random_numbers );  // <--- Error here with OpenMP
 
         // Store noise covariance matrix * randon numbers
         for ( int j = 0; j < kSysDim; j++ ) {
-            particle_state_[i * kSysDim + j] =
-                initial_state.val[j] + matrix_mult_result.val[j];
+            particle_state_[i * kSysDim + j] = initial_state.val[j] + matrix_mult_result.val[j];
         }
     }
 }
@@ -159,16 +149,13 @@ void ParticleBpfCpu::ComputeMeasErrors( ) {
     for ( int i = 0; i < kNumParticles; i++ ) {
 
         // Index through particle set
-        int idx {
-            i * kSysDim
-        };  // Use sysDim because we are indexing through particle data
+        int idx { i * kSysDim };  // Use sysDim because we are indexing through particle data
 
         // Perform measurement functions
         models::MeasModelMath( &particle_state_[idx], meas_estimates_.data( ) );
 
         for ( int j = 0; j < kMeasDim; j++ ) {
-            meas_errors_[i * kMeasDim + j] =
-                meas_update_[j] - meas_estimates_[j];
+            meas_errors_[i * kMeasDim + j] = meas_update_[j] - meas_estimates_[j];
         }
     }
 }
@@ -194,14 +181,11 @@ void ParticleBpfCpu::ComputeEstimates( ) {
     utility::Matrix meas_errors_sq { kMeasDim, kNumParticles, meas_errors_ };
 
     // Create matrix to store measurement error squared divided by the inverse
-    utility::Matrix meas_errors_sq_div_inv {
-        kMeasDim, static_cast<int>( meas_errors_.size( ) )
-    };
+    utility::Matrix meas_errors_sq_div_inv { kMeasDim, static_cast<int>( meas_errors_.size( ) ) };
 
     // Matrix multiplication inverse of noise covariance times squared
     // measurement error
-    utility::MatrixMult(
-        meas_errors_sq_div_inv, inv_meas_noise_cov, meas_errors_sq );
+    utility::MatrixMult( meas_errors_sq_div_inv, inv_meas_noise_cov, meas_errors_sq );
 
     // Clear old values
     std::fill( particle_weight_.begin( ), particle_weight_.end( ), 0 );
@@ -215,8 +199,7 @@ void ParticleBpfCpu::ComputeEstimates( ) {
     }
 
     // Normalize weights
-    float sum_of_particle_weights = std::accumulate(
-        particle_weight_.begin( ), particle_weight_.end( ), 0.0f );
+    float sum_of_particle_weights = std::accumulate( particle_weight_.begin( ), particle_weight_.end( ), 0.0f );
 
     //	 Check for filter divergence
     if ( sum_of_particle_weights < 1e-12f ) {
@@ -227,14 +210,11 @@ void ParticleBpfCpu::ComputeEstimates( ) {
     std::transform( particle_weight_.begin( ),
                     particle_weight_.end( ),
                     particle_weight_.begin( ),
-                    [&sum_of_particle_weights]( float &a ) {
-                        return ( a / sum_of_particle_weights );
-                    } );
+                    [&sum_of_particle_weights]( float &a ) { return ( a / sum_of_particle_weights ); } );
 
     for ( int i = 0; i < kSysDim; i++ ) {
         for ( int j = 0; j < kNumParticles; j++ ) {
-            filtered_estimates_[i + time_step * kSysDim] +=
-                particle_state_[j * kSysDim + i] * particle_weight_[j];
+            filtered_estimates_[i + time_step * kSysDim] += particle_state_[j * kSysDim + i] * particle_weight_[j];
         }
     }
 }
@@ -247,10 +227,8 @@ void ParticleBpfCpu::ComputeResampleIndex( ) {
     std::vector<float> prefix_sum_particle_weights( kNumParticles, 0.0f );
 
     // Compute cumulative summation on normalized weights
-    std::partial_sum( particle_weight_.begin( ),
-                      particle_weight_.end( ),
-                      prefix_sum_particle_weights.begin( ),
-                      std::plus<float>( ) );
+    std::partial_sum(
+        particle_weight_.begin( ), particle_weight_.end( ), prefix_sum_particle_weights.begin( ), std::plus<float>( ) );
 
     // Because of rounding error make last element in
     // prefix_sum_particle_weights = 1.0 This is to resolve infinite while loop
@@ -259,24 +237,20 @@ void ParticleBpfCpu::ComputeResampleIndex( ) {
 
     // Create vector that increments for 0 to N (# of particles)
     std::vector<float> uniform_random_numbers( kNumParticles, 0.0f );
-    std::iota(
-        uniform_random_numbers.begin( ), uniform_random_numbers.end( ), 0.0f );
+    std::iota( uniform_random_numbers.begin( ), uniform_random_numbers.end( ), 0.0f );
 
     std::default_random_engine       gen( std::random_device {}( ) );
     std::uniform_real_distribution<> distr( 0, 1 );
 
-    if ( kResamplingMethod ==
-         static_cast<int>( utility::Method::kSystematic ) ) {
+    if ( kResamplingMethod == static_cast<int>( utility::Method::kSystematic ) ) {
         std::transform( uniform_random_numbers.begin( ),
                         uniform_random_numbers.end( ),
                         uniform_random_numbers.begin( ),
                         std::bind1st( std::plus<float>( ), distr( gen ) ) );
-    } else if ( kResamplingMethod ==
-                static_cast<int>( utility::Method::kStratified ) ) {
-        std::for_each(
-            uniform_random_numbers.begin( ),
-            uniform_random_numbers.end( ),
-            [&distr, &gen]( float &a ) { return ( a += distr( gen ) ); } );
+    } else if ( kResamplingMethod == static_cast<int>( utility::Method::kStratified ) ) {
+        std::for_each( uniform_random_numbers.begin( ), uniform_random_numbers.end( ), [&distr, &gen]( float &a ) {
+            return ( a += distr( gen ) );
+        } );
     }
 
     // Divide each element by N (# of particles)
@@ -296,8 +270,7 @@ void ParticleBpfCpu::ComputeResampleIndex( ) {
     std::vector<float> temp_storage( particle_state_.size( ), 0.0f );
     for ( int i = 0; i < kNumParticles; i++ ) {
         for ( int j = 0; j < kSysDim; j++ ) {
-            temp_storage[i * kSysDim + j] =
-                particle_state_[resampling_index_[i] * kSysDim + j];
+            temp_storage[i * kSysDim + j] = particle_state_[resampling_index_[i] * kSysDim + j];
         }
     }
 
@@ -325,9 +298,7 @@ void ParticleBpfCpu::ComputeParticleTransition( ) {
     utility::Matrix matrix_mult_result { kSysDim, kSysDim };
 
     // Generate random numbers
-    utility::GenerateRandomNum( random_numbers,
-                                models::kSysDistrLowerLimit,
-                                models::kSysDistrUpperLimit );
+    utility::GenerateRandomNum( random_numbers, models::kSysDistrLowerLimit, models::kSysDistrUpperLimit );
 
     // For all sample sets
     for ( int i = 0; i < kNumParticles; i++ ) {
@@ -339,17 +310,14 @@ void ParticleBpfCpu::ComputeParticleTransition( ) {
 
         // Perform matrix multiplication squared process noise covariance matrix
         // times random numbers
-        utility::MatrixMult(
-            matrix_mult_result, process_noise_cov, subset_random_numbers );
+        utility::MatrixMult( matrix_mult_result, process_noise_cov, subset_random_numbers );
 
         // Compute system function at each time step based on previous time step
         // Store result in temp_vector
-        models::SysModelMath( &particle_state_[i * kSysDim],
-                              temp_vector.data( ) );
+        models::SysModelMath( &particle_state_[i * kSysDim], temp_vector.data( ) );
 
         for ( int j = 0; j < kSysDim; j++ ) {
-            particle_state_[i * kSysDim + j] =
-                temp_vector[j] + matrix_mult_result.val[j];
+            particle_state_[i * kSysDim + j] = temp_vector[j] + matrix_mult_result.val[j];
         }
     }
 }
@@ -357,8 +325,7 @@ void ParticleBpfCpu::ComputeParticleTransition( ) {
 void ParticleBpfCpu::WriteOutput( std::string const &filename ) {
 
     // Create iterator for filtered estimates
-    typename std::vector<float>::const_iterator it =
-        filtered_estimates_.cbegin( );
+    typename std::vector<float>::const_iterator it = filtered_estimates_.cbegin( );
     utility::WriteToFile( filename, "bpf", kSamples, median, mean, stdDev, it );
 }
 

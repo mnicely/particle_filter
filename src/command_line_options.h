@@ -140,11 +140,11 @@ class CommandLineOptions {
     utility::FilterInfo const &get_filter_info( ) const;
 
   private:
-    utility::FilterInfo filter_info_; /**< User-specified arguments */
-    boost::program_options::options_description my_options_; /**< Store cli */
-    bool create_data_flag_; /**< If true, create system and measurement truth */
-    bool use_truth_flag_;   /**< If true, use truth data */
-    bool use_gpu_flag_;     /**< If true, use GPU for analysis */
+    utility::FilterInfo                         filter_info_;      /**< User-specified arguments */
+    boost::program_options::options_description my_options_;       /**< Store cli */
+    bool                                        create_data_flag_; /**< If true, create system and measurement truth */
+    bool                                        use_truth_flag_;   /**< If true, use truth data */
+    bool                                        use_gpu_flag_;     /**< If true, use GPU for analysis */
 };
 
 }  // namespace command_line

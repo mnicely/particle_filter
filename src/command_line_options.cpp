@@ -16,12 +16,12 @@
  */
 
 #include <boost/program_options/options_description.hpp>  // boost::program_options::options_description
-#include <boost/program_options/parsers.hpp>  // boost::program_options::parse_command_line
+#include <boost/program_options/parsers.hpp>              // boost::program_options::parse_command_line
 #include <boost/program_options/value_semantic.hpp>  // boost::program_options::bool_switch, boost::program_options::value
 #include <boost/program_options/variables_map.hpp>  // boost::program_options::variables_map, boost::program_options::store, boost::program_options::notify
-#include <exception>                                // std::exception
-#include <iostream>                                 // std::cout
-#include <stdexcept>                                // std::runtime_error
+#include <exception>  // std::exception
+#include <iostream>   // std::cout
+#include <stdexcept>  // std::runtime_error
 
 #include "command_line_options.h"
 
@@ -57,10 +57,7 @@ void CommandLineOptions::ParseInputs( int const argc, char const *argv[] ) {
     boost::program_options::variables_map var_map {};
 
     try {
-        boost::program_options::store(
-            boost::program_options::parse_command_line(
-                argc, argv, my_options_ ),
-            var_map );
+        boost::program_options::store( boost::program_options::parse_command_line( argc, argv, my_options_ ), var_map );
         boost::program_options::notify( var_map );
 
         if ( var_map.count( "help" ) ) {
@@ -69,58 +66,44 @@ void CommandLineOptions::ParseInputs( int const argc, char const *argv[] ) {
         }
 
     } catch ( std::exception &e ) {
-        throw std::runtime_error( "Parsing error - " +
-                                  std::string( e.what( ) ) );
+        throw std::runtime_error( "Parsing error - " + std::string( e.what( ) ) );
 
     } catch ( ... ) {
-        throw std::runtime_error(
-            "Parsing error (unknown type)!\n Run ./Filters -h for help" );
+        throw std::runtime_error( "Parsing error (unknown type)!\n Run ./Filters -h for help" );
     }
 
     // Check sample parameter
     if ( filter_info_.samples <= 0 ) {
         filter_info_.samples = 500;
         std::printf( "Number of samples must be a greater than 0\n" );
-        std::printf( "Number of samples increased to %d\n\n",
-                     filter_info_.samples );
+        std::printf( "Number of samples increased to %d\n\n", filter_info_.samples );
     }
 
     // Check particle parameter
     if ( ( filter_info_.particles % 128 != 0 ) && use_gpu_flag_ ) {
 
-        filter_info_.particles =
-            ceil( static_cast<float>( filter_info_.particles ) / 128 ) * 128;
+        filter_info_.particles = ceil( static_cast<float>( filter_info_.particles ) / 128 ) * 128;
         std::printf( "Number of particles must be a multiple of 128\n" );
-        std::printf( "Number of particles increased to %d\n\n",
-                     filter_info_.particles );
+        std::printf( "Number of particles increased to %d\n\n", filter_info_.particles );
 
     } else if ( filter_info_.particles <= 0 ) {
 
         filter_info_.particles = 65536;
         std::printf( "Number of particles must be greater than 0\n" );
-        std::printf( "Number of particles changed to %d\n\n",
-                     filter_info_.particles );
+        std::printf( "Number of particles changed to %d\n\n", filter_info_.particles );
     }
 
     // Check resampling method parameter
-    if ( filter_info_.resampling >=
-         static_cast<int>( utility::Method::kCount ) ) {
+    if ( filter_info_.resampling >= static_cast<int>( utility::Method::kCount ) ) {
 
         std::printf( "Resampling method options: \n" );
-        for ( int i = 0; i < static_cast<int>( utility::Method::kCount );
-              i++ ) {
-            std::printf( "%d -> %s \n",
-                         i,
-                         utility::method_map.find( utility::Method( i ) )
-                             ->second.c_str( ) );
+        for ( int i = 0; i < static_cast<int>( utility::Method::kCount ); i++ ) {
+            std::printf( "%d -> %s \n", i, utility::method_map.find( utility::Method( i ) )->second.c_str( ) );
         }
 
-        throw std::runtime_error(
-            "Incorrect resampling method!\n Run ./Filters -h for help" );
+        throw std::runtime_error( "Incorrect resampling method!\n Run ./Filters -h for help" );
 
-    } else if ( filter_info_.resampling ==
-                    static_cast<int>( utility::Method::kMetropolisC2 ) &&
-                ( !use_gpu_flag_ ) ) {
+    } else if ( filter_info_.resampling == static_cast<int>( utility::Method::kMetropolisC2 ) && ( !use_gpu_flag_ ) ) {
         throw std::runtime_error( "CPU version of Metropolis not "
                                   "implemented!\n Run ./Filters -h for help" );
     }
@@ -129,8 +112,7 @@ void CommandLineOptions::ParseInputs( int const argc, char const *argv[] ) {
     if ( !filter_info_.num_mcs ) {
         filter_info_.num_mcs = 10;
         std::printf( "Number of Monte Carlos must be greater than 0\n" );
-        std::printf( "Number of Monte Carlos increased to %d\n\n",
-                     filter_info_.num_mcs );
+        std::printf( "Number of Monte Carlos increased to %d\n\n", filter_info_.num_mcs );
     }
 }
 

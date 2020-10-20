@@ -46,24 +46,20 @@ GenerateData::GenerateData( utility::FilterInfo const &filter_info ) :
 
 GenerateData::~GenerateData( ) noexcept {}
 
-void GenerateData::get_current_meas_data( int const &idx,
-                                          float *    current_meas_data ) {
+void GenerateData::get_current_meas_data( int const &idx, float *current_meas_data ) {
     for ( int i = 0; i < kMeasDim; i++ ) {
         current_meas_data[i] = meas_truth_data_[idx + i];
     }
 }
 
 // Need to create data directory
-void GenerateData::CreateTruthData( std::string const &system_data_file,
-                                    std::string const &meas_data_file ) {
+void GenerateData::CreateTruthData( std::string const &system_data_file, std::string const &meas_data_file ) {
 
     if ( !std::remove( system_data_file.c_str( ) ) ) {
-        std::printf( "Previous %s successfully removed\n",
-                     system_data_file.c_str( ) );
+        std::printf( "Previous %s successfully removed\n", system_data_file.c_str( ) );
     }
     if ( !std::remove( meas_data_file.c_str( ) ) ) {
-        std::printf( "Previous %s successfully removed\n",
-                     meas_data_file.c_str( ) );
+        std::printf( "Previous %s successfully removed\n", meas_data_file.c_str( ) );
     }
 
     utility::WriteTruthHeader( system_data_file, kNumMcs, kSysDim, kSamples );
@@ -74,12 +70,9 @@ void GenerateData::CreateTruthData( std::string const &system_data_file,
         WriteCreatedTruthData( system_data_file, meas_data_file );
     }
 
-    std::printf( "Successfullly created truth data in %s and %s.\n",
-                 system_data_file.c_str( ),
-                 meas_data_file.c_str( ) );
-    std::printf( "With %d Monte Carlo runs and %d samples per run.\n",
-                 kNumMcs,
-                 kSamples );
+    std::printf(
+        "Successfullly created truth data in %s and %s.\n", system_data_file.c_str( ), meas_data_file.c_str( ) );
+    std::printf( "With %d Monte Carlo runs and %d samples per run.\n", kNumMcs, kSamples );
 
     exit( EXIT_SUCCESS );
 }
@@ -116,9 +109,7 @@ void GenerateData::GenerateSystemTruthData( ) {
     utility::Matrix matrix_mult_result { kSysDim, 1 };
 
     // Generate random numbers
-    utility::GenerateRandomNum( random_numbers,
-                                models::kSysDistrLowerLimit,
-                                models::kSysDistrUpperLimit );
+    utility::GenerateRandomNum( random_numbers, models::kSysDistrLowerLimit, models::kSysDistrUpperLimit );
 
     // Copy first set of random numbers to matrix data
     for ( int j = 0; j < kSysDim; j++ ) {
@@ -127,14 +118,12 @@ void GenerateData::GenerateSystemTruthData( ) {
 
     // Perform matrix multiplication squared process noise covariance matrix
     // times random numbers
-    utility::MatrixMult(
-        matrix_mult_result, process_noise_cov, subset_random_numbers );
+    utility::MatrixMult( matrix_mult_result, process_noise_cov, subset_random_numbers );
 
     // Store initial state + (initial noise covariance matrix * randon numbers)
     // in truthSystemData
     for ( int j = 0; j < kSysDim; j++ ) {
-        system_truth_data_[0 * kSysDim + j] =
-            initial_state.val[j] + matrix_mult_result.val[j];
+        system_truth_data_[0 * kSysDim + j] = initial_state.val[j] + matrix_mult_result.val[j];
     }
 
     // For all sample sets
@@ -147,13 +136,11 @@ void GenerateData::GenerateSystemTruthData( ) {
 
         // Perform matrix multiplication squared process noise covariance matrix
         // times random numbers
-        utility::MatrixMult(
-            matrix_mult_result, process_noise_cov, subset_random_numbers );
+        utility::MatrixMult( matrix_mult_result, process_noise_cov, subset_random_numbers );
 
         // Once we've completed matrix multiplcation we need to process system
         // function with information from the previous state
-        models::SysModelMath( &system_truth_data_[( i - 1 ) * kSysDim],
-                              &system_truth_data_[i * kSysDim] );
+        models::SysModelMath( &system_truth_data_[( i - 1 ) * kSysDim], &system_truth_data_[i * kSysDim] );
 
         // Store system function + (noise covariance matrix * randon numbers)
         for ( int j = 0; j < kSysDim; j++ ) {
@@ -180,9 +167,7 @@ void GenerateData::GenerateMeasTruthData( ) {
     utility::Matrix matrix_mult_result { kMeasDim, 1 };
 
     // Generate random numbers
-    utility::GenerateRandomNum( random_numbers,
-                                models::kMeasDistrLowerLimit,
-                                models::kMeasDistrUpperLimit );
+    utility::GenerateRandomNum( random_numbers, models::kMeasDistrLowerLimit, models::kMeasDistrUpperLimit );
 
     // For all sample sets
     for ( int i = 0; i < kSamples; i++ ) {
@@ -194,12 +179,10 @@ void GenerateData::GenerateMeasTruthData( ) {
 
         // Perform matrix multiplication squared measurement noise covariance
         // matrix times
-        utility::MatrixMult(
-            matrix_mult_result, meas_noise_cov, subset_random_numbers );
+        utility::MatrixMult( matrix_mult_result, meas_noise_cov, subset_random_numbers );
 
         // Compute measurement function at each time step
-        models::MeasModelMath( &system_truth_data_[i * kSysDim],
-                               &meas_truth_data_[i * kMeasDim] );
+        models::MeasModelMath( &system_truth_data_[i * kSysDim], &meas_truth_data_[i * kMeasDim] );
 
         // Store measurement function + (noise covariance matrix * randon
         // numbers)
@@ -220,14 +203,12 @@ void GenerateData::ReadInTruthData( std::string const &system_data_file,
     ReadInMeasurementData( meas_data_file, num_mcs );
 }
 
-void GenerateData::ReadInSystemTruthData( std::string const &system_data_file,
-                                          int const &        num_mcs ) {
+void GenerateData::ReadInSystemTruthData( std::string const &system_data_file, int const &num_mcs ) {
 
     ReadDataFromFile( system_data_file, kSysDim, num_mcs, system_truth_data_ );
 }
 
-void GenerateData::ReadInMeasurementData( std::string const &meas_data_file,
-                                          int const &        num_mcs ) {
+void GenerateData::ReadInMeasurementData( std::string const &meas_data_file, int const &num_mcs ) {
 
     ReadDataFromFile( meas_data_file, kMeasDim, num_mcs, meas_truth_data_ );
 }
@@ -242,8 +223,7 @@ void GenerateData::ReadDataFromFile( std::string const & truth_data,
 
     // Check if object is valid
     if ( !input_file ) {
-        throw std::runtime_error( "Unable to read input file " + truth_data +
-                                  ". Try running './filters --create'.\n" );
+        throw std::runtime_error( "Unable to read input file " + truth_data + ". Try running './filters --create'.\n" );
     }
 
     std::string line {};
@@ -259,19 +239,14 @@ void GenerateData::ReadDataFromFile( std::string const & truth_data,
 
     // Check input file versus application parameters
     if ( num_mcs < kNumMcs ) {
-        throw std::runtime_error( "Monte Carlos ( " +
-                                  std::to_string( num_mcs ) + " ) in " +
-                                  truth_data + " are less than requested ( " +
-                                  std::to_string( kNumMcs ) + " )." );
+        throw std::runtime_error( "Monte Carlos ( " + std::to_string( num_mcs ) + " ) in " + truth_data +
+                                  " are less than requested ( " + std::to_string( kNumMcs ) + " )." );
     } else if ( dim != model_dim ) {
-        throw std::runtime_error(
-            "Dimensions ( " + std::to_string( dim ) + " ) in " + truth_data +
-            " don't match requested ( " + std::to_string( kMeasDim ) + " )." );
+        throw std::runtime_error( "Dimensions ( " + std::to_string( dim ) + " ) in " + truth_data +
+                                  " don't match requested ( " + std::to_string( kMeasDim ) + " )." );
     } else if ( kSamples > samples ) {
-        throw std::runtime_error( "Samples ( " + std::to_string( samples ) +
-                                  " ) in " + truth_data +
-                                  " are less than requested ( " +
-                                  std::to_string( kSamples ) + " )." );
+        throw std::runtime_error( "Samples ( " + std::to_string( samples ) + " ) in " + truth_data +
+                                  " are less than requested ( " + std::to_string( kSamples ) + " )." );
     }
 
     // Skip previous Monte Carlo truth data
@@ -293,8 +268,7 @@ void GenerateData::WriteGeneratedData( std::string const &truth_data ) {
     utility::WriteToFile( truth_data, kSysDim, kSamples, it );
 }
 
-void GenerateData::WriteCreatedTruthData( std::string const &system_data_file,
-                                          std::string const &meas_data_file ) {
+void GenerateData::WriteCreatedTruthData( std::string const &system_data_file, std::string const &meas_data_file ) {
 
     std::vector<float>::const_iterator itSys { system_truth_data_.cbegin( ) };
     utility::WriteToFile( system_data_file, kSysDim, kSamples, itSys );

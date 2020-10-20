@@ -41,9 +41,7 @@ namespace models {
  */
 
 inline __host__ __device__ int Signum( float const &x ) {
-    return ( x < -std::numeric_limits<float>::epsilon( )
-                 ? -1
-                 : x > std::numeric_limits<float>::epsilon( ) );
+    return ( x < -std::numeric_limits<float>::epsilon( ) ? -1 : x > std::numeric_limits<float>::epsilon( ) );
 }
 
 /**
@@ -54,8 +52,7 @@ inline __host__ __device__ int Signum( float const &x ) {
  * @param[in] input Vector with particle state data
  * @param[out] system_model_result Vector with updated particle state datA
  */
-inline __host__ __device__ void SysModelMath( float const *input,
-                                              float *system_result ) {
+inline __host__ __device__ void SysModelMath( float const *input, float *system_result ) {
     /*
      * Computes p(x_t | x_(t-1)
      *
@@ -81,8 +78,7 @@ inline __host__ __device__ void SysModelMath( float const *input,
  * @param[in] input Vector with measurement data
  * @param[out] meas_model_result Vector with updated measurement datA
  */
-inline __host__ __device__ void MeasModelMath( float const *input,
-                                               float *meas_result ) {
+inline __host__ __device__ void MeasModelMath( float const *input, float *meas_result ) {
     /*
      * Computes p(y | x_t)
      *
@@ -95,18 +91,10 @@ inline __host__ __device__ void MeasModelMath( float const *input,
     meas_result[1] = input[idx + 1] - input[idx + 2] + input[idx + 3];
 }
 
-static float const kSysDistrLowerLimit {
-    0.0f
-}; /**< System model's lower distribution limit */
-static float const kSysDistrUpperLimit {
-    1.0f
-}; /**< System model's upper distribution limit */
-static float const kMeasDistrLowerLimit {
-    0.0f
-}; /**< Measurement model's lower distribution limit */
-static float const kMeasDistrUpperLimit {
-    0.1f
-}; /**< Measurement model's upper distribution limit */
+static float const kSysDistrLowerLimit { 0.0f };  /**< System model's lower distribution limit */
+static float const kSysDistrUpperLimit { 1.0f };  /**< System model's upper distribution limit */
+static float const kMeasDistrLowerLimit { 0.0f }; /**< Measurement model's lower distribution limit */
+static float const kMeasDistrUpperLimit { 0.1f }; /**< Measurement model's upper distribution limit */
 
 // clang-format off
 

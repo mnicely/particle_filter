@@ -94,8 +94,7 @@ class GenerateData {
      * + generatedData
      * + WriteCreatedTruthData
      */
-    void CreateTruthData( std::string const &system_data_file,
-                          std::string const &meas_data_file );
+    void CreateTruthData( std::string const &system_data_file, std::string const &meas_data_file );
 
     /**
      * @brief Generate truth data for each Monte Carlo in real-time
@@ -117,9 +116,7 @@ class GenerateData {
      * + ReadInSystemTruthData
      * + ReadInMeasurementData
      */
-    void ReadInTruthData( std::string const &system_data_file,
-                          std::string const &meas_data_file,
-                          int const &        num_mcs );
+    void ReadInTruthData( std::string const &system_data_file, std::string const &meas_data_file, int const &num_mcs );
 
     /**
      * @brief Write generated data to file
@@ -134,8 +131,7 @@ class GenerateData {
      * @param[in] system_data_file File containing system state data
      * @param[in] meas_data_file File containing measurement state data
      */
-    void WriteCreatedTruthData( std::string const &system_data_file,
-                                std::string const &meas_data_file );
+    void WriteCreatedTruthData( std::string const &system_data_file, std::string const &meas_data_file );
 
   private:
     /**
@@ -157,8 +153,7 @@ class GenerateData {
      * Calls the following
      * + ReadDataFromFile
      */
-    void ReadInSystemTruthData( std::string const &system_data_file,
-                                int const &        num_mcs );
+    void ReadInSystemTruthData( std::string const &system_data_file, int const &num_mcs );
 
     /**
      * @brief Read in measurement data from input file
@@ -168,8 +163,7 @@ class GenerateData {
      * Calls the following
      * + ReadDataFromFile
      */
-    void ReadInMeasurementData( std::string const &meas_data_file,
-                                int const &        num_mcs );
+    void ReadInMeasurementData( std::string const &meas_data_file, int const &num_mcs );
 
     /**
      * @brief Construct a new read Data From File object
@@ -191,8 +185,8 @@ class GenerateData {
 
     std::vector<float> system_truth_data_; /**< Vector to store actual data :
                                               system dimension * samples */
-    std::vector<float> meas_truth_data_; /**< Vector to store true measurements
-                                            : measurement dimension * samples */
+    std::vector<float> meas_truth_data_;   /**< Vector to store true measurements
+                                              : measurement dimension * samples */
 };
 
 } /* namespace filters */

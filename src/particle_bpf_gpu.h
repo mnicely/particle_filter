@@ -49,10 +49,8 @@ class ParticleBpfGpu : public ParticleBase {
      * @param[in] info Structure containing information about filter
      * @param[in] truth_meas_func_ptr Pointer to true measurement data
      */
-    ParticleBpfGpu(
-        utility::FilterInfo const &filter_info,
-        std::function<void( int const &idx, float *current_meas_data )> const
-            &truth_meas_func_ptr );
+    ParticleBpfGpu( utility::FilterInfo const &                                            filter_info,
+                    std::function<void( int const &idx, float *current_meas_data )> const &truth_meas_func_ptr );
 
     /**
      * @brief Destroy the ParticleBpfGpu object
@@ -91,8 +89,7 @@ class ParticleBpfGpu : public ParticleBase {
      * @param[out] timing_results 2D vector to hold timing results of all Monte
      * Carlo runs
      */
-    void Initialize( int const &                      mcs,
-                     std::vector<std::vector<float>> &timing_results );
+    void Initialize( int const &mcs, std::vector<std::vector<float>> &timing_results );
 
     /**
      * @brief Function to write filter estimates to output file
@@ -202,10 +199,10 @@ class ParticleBpfGpu : public ParticleBase {
     template<typename U>
     using UniqueHostPtr = std::unique_ptr<U, HostMemoryDeleter<U>>;
 
-    int const kSysDim;       /**< Quantity of dimensions of the system */
-    int const kMeasDim;      /**< Quantity of dimensions of the measurement */
-    int const kSamples;      /**< Quantity of samples to be processed */
-    int const kNumParticles; /**< The quantity of particles */
+    int const kSysDim;           /**< Quantity of dimensions of the system */
+    int const kMeasDim;          /**< Quantity of dimensions of the measurement */
+    int const kSamples;          /**< Quantity of samples to be processed */
+    int const kNumParticles;     /**< The quantity of particles */
     int const kResamplingMethod; /**< Type of filter: Bootstrap = 0 */
 
     std::vector<T> filtered_estimates_; /**< Vector to store sample estimations
@@ -223,39 +220,32 @@ class ParticleBpfGpu : public ParticleBase {
     cudaStream_t cuda_streams_[kNumStreams]; /**< Pointer to CUDA stream */
     cudaEvent_t  cuda_events_[kNumEvents];   /**< Event handle for CUDA */
 
-    UniqueDevicePtr<T> d_filtered_estimates_; /**< Device storage : filtered
-                                                 estimates : samples * sysDim */
-    UniqueDevicePtr<T> d_particle_state_; /**< Device storage : current particle
-                                             state : particles * sysDim */
-    UniqueDevicePtr<T>
-        d_particle_state_new_; /**< Device storage : current particle state :
-                                  particles * sysDim */
-    UniqueDevicePtr<T> d_particle_weights_; /**< Device storage : particle
-                                               weights : particles */
-    UniqueDevicePtr<T>
-        d_prefix_sum_particle_weights_; /**< Device storage : prefix-sum weights
-                                           : particles */
-    UniqueDevicePtr<int>
-        d_resampling_index_up_; /**< Device storage : resampling index :
-                                   particles */
-    UniqueDevicePtr<int>
-        d_resampling_index_down_; /**< Device storage : resampling index :
-                                     particles */
+    UniqueDevicePtr<T> d_filtered_estimates_;          /**< Device storage : filtered
+                                                          estimates : samples * sysDim */
+    UniqueDevicePtr<T> d_particle_state_;              /**< Device storage : current particle
+                                                          state : particles * sysDim */
+    UniqueDevicePtr<T> d_particle_state_new_;          /**< Device storage : current particle state :
+                                                          particles * sysDim */
+    UniqueDevicePtr<T> d_particle_weights_;            /**< Device storage : particle
+                                                          weights : particles */
+    UniqueDevicePtr<T> d_prefix_sum_particle_weights_; /**< Device storage : prefix-sum weights
+                                                          : particles */
+    UniqueDevicePtr<int> d_resampling_index_up_;       /**< Device storage : resampling index :
+                                                          particles */
+    UniqueDevicePtr<int> d_resampling_index_down_;     /**< Device storage : resampling index :
+                                                          particles */
 
     /*
      * Pinned Memory
      */
-    UniqueHostPtr<T>
-        h_pin_sq_initial_noise_cov_; /**< Squared covariance of the initial
-                                        state : sysDim * sysDim */
-    UniqueHostPtr<T>
-        h_pin_inv_meas_noise_cov_; /**< Inverse measurement noise covariance :
-                                      measDim * measDim */
-    UniqueHostPtr<T>
-        h_pin_sq_process_noise_cov_;     /**< Squared process noise covariance :
-                                            sysDim * sysDim */
-    UniqueHostPtr<T> h_pin_meas_update_; /**< Store measurement UpdateTimeStep
-                                            at time step : measDim */
+    UniqueHostPtr<T> h_pin_sq_initial_noise_cov_; /**< Squared covariance of the initial
+                                                     state : sysDim * sysDim */
+    UniqueHostPtr<T> h_pin_inv_meas_noise_cov_;   /**< Inverse measurement noise covariance :
+                                                     measDim * measDim */
+    UniqueHostPtr<T> h_pin_sq_process_noise_cov_; /**< Squared process noise covariance :
+                                                     sysDim * sysDim */
+    UniqueHostPtr<T> h_pin_meas_update_;          /**< Store measurement UpdateTimeStep
+                                                     at time step : measDim */
 };
 
 } /* namespace filters */

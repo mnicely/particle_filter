@@ -52,34 +52,23 @@ int main( int const argc, char const *argv[] ) {
     std::string truth_file {};
 
     // Create input and output files
-    truth_file =
-        kDir + "truth_" +
-        utility::processor_map
-            .find( utility::Processor( readCL.get_use_gpu_flag( ) ) )
-            ->second +
-        "_" +
-        utility::method_map.find( utility::Method( readCL.get_resampling( ) ) )
-            ->second +
-        "_" + std::to_string( readCL.get_particles( ) ) + ".txt";
+    truth_file = kDir + "truth_" +
+                 utility::processor_map.find( utility::Processor( readCL.get_use_gpu_flag( ) ) )->second + "_" +
+                 utility::method_map.find( utility::Method( readCL.get_resampling( ) ) )->second + "_" +
+                 std::to_string( readCL.get_particles( ) ) + ".txt";
 
     utility::WriteDataHeader( truth_file, readCL.get_filter_info( ) );
 
-    estimate_file =
-        kDir + "estimate_" +
-        utility::processor_map
-            .find( utility::Processor( readCL.get_use_gpu_flag( ) ) )
-            ->second +
-        "_" +
-        utility::method_map.find( utility::Method( readCL.get_resampling( ) ) )
-            ->second +
-        "_" + std::to_string( readCL.get_particles( ) ) + ".txt";
+    estimate_file = kDir + "estimate_" +
+                    utility::processor_map.find( utility::Processor( readCL.get_use_gpu_flag( ) ) )->second + "_" +
+                    utility::method_map.find( utility::Method( readCL.get_resampling( ) ) )->second + "_" +
+                    std::to_string( readCL.get_particles( ) ) + ".txt";
 
     utility::WriteDataHeader( estimate_file, readCL.get_filter_info( ) );
 
     // Store average timing results for all Monte Carlos
-    std::vector<std::vector<float>> timing_results(
-        static_cast<int>( utility::Timing::kCount ),
-        std::vector<float>( readCL.get_num_mcs( ), 0.0f ) );
+    std::vector<std::vector<float>> timing_results( static_cast<int>( utility::Timing::kCount ),
+                                                    std::vector<float>( readCL.get_num_mcs( ), 0.0f ) );
 
     for ( int mc = 0; mc < readCL.get_num_mcs( ); mc++ ) {
 
@@ -97,24 +86,18 @@ int main( int const argc, char const *argv[] ) {
         gd.WriteGeneratedData( truth_file );
 
         // Function pointer to generated measurement data
-        auto truth_meas_func_ptr =
-            std::bind( &filters::GenerateData::get_current_meas_data,
-                       gd,
-                       std::placeholders::_1,
-                       std::placeholders::_2 );
+        auto truth_meas_func_ptr = std::bind(
+            &filters::GenerateData::get_current_meas_data, gd, std::placeholders::_1, std::placeholders::_2 );
 
         // If bootstrap particle filter
-        if ( readCL.get_filter_type( ) ==
-             static_cast<int>( utility::Filter::kBootstrap ) ) {
+        if ( readCL.get_filter_type( ) == static_cast<int>( utility::Filter::kBootstrap ) ) {
             // Use GPU version
             if ( readCL.get_use_gpu_flag( ) ) {
-                filters::ParticleBpfGpu<float> bpf( readCL.get_filter_info( ),
-                                                    truth_meas_func_ptr );
+                filters::ParticleBpfGpu<float> bpf( readCL.get_filter_info( ), truth_meas_func_ptr );
                 bpf.Initialize( mc, timing_results );
                 bpf.WriteOutput( estimate_file );
             } else {  // Use CPU version
-                filters::ParticleBpfCpu bpf( readCL.get_filter_info( ),
-                                             truth_meas_func_ptr );
+                filters::ParticleBpfCpu bpf( readCL.get_filter_info( ), truth_meas_func_ptr );
                 bpf.Initialize( mc, timing_results );
                 bpf.WriteOutput( estimate_file );
             }
@@ -122,19 +105,13 @@ int main( int const argc, char const *argv[] ) {
     }
 
     // Print average timing
-    std::printf(
-        "%s: %s: Monte Carlos %d: Samples %d: Particles: %d\n",
-        utility::processor_map
-            .find( utility::Processor( readCL.get_use_gpu_flag( ) ) )
-            ->second.c_str( ),
-        utility::method_map.find( utility::Method( readCL.get_resampling( ) ) )
-            ->second.c_str( ),
-        readCL.get_num_mcs( ),
-        readCL.get_samples( ),
-        readCL.get_particles( ) );
-    std::printf( "Data stored in %s and %s\n",
-                 estimate_file.c_str( ),
-                 truth_file.c_str( ) );
+    std::printf( "%s: %s: Monte Carlos %d: Samples %d: Particles: %d\n",
+                 utility::processor_map.find( utility::Processor( readCL.get_use_gpu_flag( ) ) )->second.c_str( ),
+                 utility::method_map.find( utility::Method( readCL.get_resampling( ) ) )->second.c_str( ),
+                 readCL.get_num_mcs( ),
+                 readCL.get_samples( ),
+                 readCL.get_particles( ) );
+    std::printf( "Data stored in %s and %s\n", estimate_file.c_str( ), truth_file.c_str( ) );
     std::printf( "Average Times (us)\n" );
     utility::PrintTimingResults( timing_results );
 

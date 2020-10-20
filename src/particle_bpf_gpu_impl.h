@@ -21,8 +21,6 @@
 #include <iterator>   // std::vector<>::const_iterator
 #include <numeric>    // std::accumulate, std::inner_product
 
-#include <helper_cuda.h>  // checkCudaErrors
-
 #include "models.h"
 
 namespace filters {
@@ -121,10 +119,10 @@ void ComputeResampleIndexCuda( int const &         sm_count_,
                                int const &         time_step,
                                int const &         kResamplingMethod,
                                T const *           d_particle_weights_,
-                               T *          d_prefix_sum_particle_weights_,
-                               cudaEvent_t *cuda_events_,
-                               int *        d_resampling_index_up_,
-                               int *        d_resampling_index_down_ );
+                               T *                 d_prefix_sum_particle_weights_,
+                               cudaEvent_t *       cuda_events_,
+                               int *               d_resampling_index_up_,
+                               int *               d_resampling_index_down_ );
 
 /**
  * @brief Wrapper to CUDA kernel ComputeParticleTransition
@@ -148,18 +146,17 @@ void ComputeParticleTransitionCuda( int const &         sm_count_,
                                     cudaStream_t const *cuda_streams_,
                                     int const &         kNumParticles,
                                     int const &         kResamplingMethod,
-                                    T const *    h_pin_sq_process_noise_cov_,
-                                    T const *    d_particle_state_,
-                                    int const *  d_resampling_index_up_,
-                                    int const *  d_resampling_index_down_,
-                                    cudaEvent_t *cuda_events_,
-                                    T *          d_particle_state_new_ );
+                                    T const *           h_pin_sq_process_noise_cov_,
+                                    T const *           d_particle_state_,
+                                    int const *         d_resampling_index_up_,
+                                    int const *         d_resampling_index_down_,
+                                    cudaEvent_t *       cuda_events_,
+                                    T *                 d_particle_state_new_ );
 
 template<typename T>
 ParticleBpfGpu<T>::ParticleBpfGpu(
-    utility::FilterInfo const &filter_info,
-    std::function<void( int const &idx, float *current_meas_data )> const
-        &truth_meas_func_ptr ) :
+    utility::FilterInfo const &                                            filter_info,
+    std::function<void( int const &idx, float *current_meas_data )> const &truth_meas_func_ptr ) :
     // clang-format off
     device_id_ {},
     sm_count_ {},
@@ -185,27 +182,22 @@ ParticleBpfGpu<T>::ParticleBpfGpu(
     h_pin_meas_update_ { HostAllocate<T> ( kMeasDim ) }  // clang-format on
 {
     // Get number of SMs
-    checkCudaErrors( cudaDeviceGetAttribute(
-        &sm_count_, cudaDevAttrMultiProcessorCount, device_id_ ) );
+    CUDA_RT_CALL( cudaDeviceGetAttribute( &sm_count_, cudaDevAttrMultiProcessorCount, device_id_ ) );
 
     // Create streams and priorities
     int priority_high {}, priority_low {};
-    checkCudaErrors(
-        cudaDeviceGetStreamPriorityRange( &priority_low, &priority_high ) );
+    CUDA_RT_CALL( cudaDeviceGetStreamPriorityRange( &priority_low, &priority_high ) );
 
-    checkCudaErrors(
-        cudaStreamCreateWithPriority( &cuda_streams_[0],
-                                      cudaStreamNonBlocking,
-                                      priority_high ) );  // Main stream
-    checkCudaErrors(
-        cudaStreamCreateWithPriority( &cuda_streams_[1],
-                                      cudaStreamNonBlocking,
-                                      priority_high ) );  // resampling Up
+    CUDA_RT_CALL( cudaStreamCreateWithPriority( &cuda_streams_[0],
+                                                cudaStreamNonBlocking,
+                                                priority_high ) );  // Main stream
+    CUDA_RT_CALL( cudaStreamCreateWithPriority( &cuda_streams_[1],
+                                                cudaStreamNonBlocking,
+                                                priority_high ) );  // resampling Up
 
     // Create events
     for ( int i = 0; i < kNumEvents; i++ ) {
-        checkCudaErrors( cudaEventCreateWithFlags( &cuda_events_[i],
-                                                   cudaEventDisableTiming ) );
+        CUDA_RT_CALL( cudaEventCreateWithFlags( &cuda_events_[i], cudaEventDisableTiming ) );
     }
 
     // Copy Models to pinned memory
@@ -226,18 +218,16 @@ template<typename T>
 ParticleBpfGpu<T>::~ParticleBpfGpu( ) noexcept {
 
     for ( int i = 0; i < kNumStreams; i++ ) {
-        checkCudaErrors( cudaStreamDestroy( cuda_streams_[i] ) );
+        CUDA_RT_CALL( cudaStreamDestroy( cuda_streams_[i] ) );
     }
 
     for ( int i = 0; i < kNumEvents; i++ ) {
-        checkCudaErrors( cudaEventDestroy( cuda_events_[i] ) );
+        CUDA_RT_CALL( cudaEventDestroy( cuda_events_[i] ) );
     }
 }
 
 template<typename T>
-void ParticleBpfGpu<T>::Initialize(
-    int const &                      mcs,
-    std::vector<std::vector<float>> &timing_results ) {
+void ParticleBpfGpu<T>::Initialize( int const &mcs, std::vector<std::vector<float>> &timing_results ) {
 
     RANGE( "ParticleBpfGpu", color++ )
 
@@ -249,24 +239,23 @@ void ParticleBpfGpu<T>::Initialize(
     // For timing purposes
     std::vector<T> time_vector( kSamples, 0.0f );
     cudaEvent_t    start {}, stop {};
-    checkCudaErrors( cudaEventCreate( &start ) );
-    checkCudaErrors( cudaEventCreate( &stop ) );
+    CUDA_RT_CALL( cudaEventCreate( &start ) );
+    CUDA_RT_CALL( cudaEventCreate( &stop ) );
 
     for ( int i = 0; i < kSamples; i++ ) {
-        checkCudaErrors( cudaEventRecord( start ) );
+        CUDA_RT_CALL( cudaEventRecord( start ) );
 
         UpdateTimeStep( );
 
-        checkCudaErrors( cudaEventRecord( stop ) );
-        checkCudaErrors( cudaEventSynchronize( stop ) );
+        CUDA_RT_CALL( cudaEventRecord( stop ) );
+        CUDA_RT_CALL( cudaEventSynchronize( stop ) );
         float milliseconds { 0.0f };
-        checkCudaErrors( cudaEventElapsedTime( &milliseconds, start, stop ) );
+        CUDA_RT_CALL( cudaEventElapsedTime( &milliseconds, start, stop ) );
         time_vector[i] = milliseconds * 1000;
         time_step++;
     }
 
-    utility::ComputeOverallTiming(
-        time_vector, median, mean, stdDev );  // Compute standard deviation
+    utility::ComputeOverallTiming( time_vector, median, mean, stdDev );  // Compute standard deviation
 
     timing_results[static_cast<int>( utility::Timing::kMedian )][mcs] = median;
     timing_results[static_cast<int>( utility::Timing::kMean )][mcs]   = mean;
@@ -285,7 +274,7 @@ void ParticleBpfGpu<T>::InitializeParticles( ) {
                              cuda_events_,
                              d_particle_state_new_.get( ) );
 
-    checkCudaErrors( cudaDeviceSynchronize( ) );
+    CUDA_RT_CALL( cudaDeviceSynchronize( ) );
 }
 
 template<typename T>
@@ -298,7 +287,7 @@ void ParticleBpfGpu<T>::UpdateTimeStep( ) {
     ComputeEstimates( );
     ComputeResampleIndex( );
     ComputeParticleTransition( );
-    checkCudaErrors( cudaDeviceSynchronize( ) );
+    CUDA_RT_CALL( cudaDeviceSynchronize( ) );
 }
 
 template<typename T>
@@ -387,11 +376,11 @@ template<typename T>
 void ParticleBpfGpu<T>::WriteOutput( const std::string &filename ) {
 
     // Copy device memory to host
-    checkCudaErrors( cudaMemcpyAsync( filtered_estimates_.data( ),
-                                      d_filtered_estimates_.get( ),
-                                      kSysDim * kSamples * sizeof( T ),
-                                      cudaMemcpyDeviceToHost,
-                                      cuda_streams_[0] ) );
+    CUDA_RT_CALL( cudaMemcpyAsync( filtered_estimates_.data( ),
+                                   d_filtered_estimates_.get( ),
+                                   kSysDim * kSamples * sizeof( T ),
+                                   cudaMemcpyDeviceToHost,
+                                   cuda_streams_[0] ) );
 
     // Create iterator for filtered estimates
     typename std::vector<T>::const_iterator it = filtered_estimates_.cbegin( );
@@ -403,8 +392,8 @@ template<typename U>
 U *ParticleBpfGpu<T>::DeviceAllocate( int const &N ) {
     U *    ptr { nullptr };
     size_t bytes { N * sizeof( U ) };
-    checkCudaErrors( cudaMalloc( reinterpret_cast<void **>( &ptr ), bytes ) );
-    checkCudaErrors( cudaMemset( ptr, 0, bytes ) );
+    CUDA_RT_CALL( cudaMalloc( reinterpret_cast<void **>( &ptr ), bytes ) );
+    CUDA_RT_CALL( cudaMemset( ptr, 0, bytes ) );
     return ( ptr );
 }
 
@@ -412,7 +401,7 @@ template<typename T>
 template<typename U>
 void ParticleBpfGpu<T>::DeviceMemoryDeleter<U>::operator( )( U *ptr ) {
     if ( ptr ) {
-        checkCudaErrors( cudaFree( ptr ) );
+        CUDA_RT_CALL( cudaFree( ptr ) );
     }
 };
 
@@ -421,9 +410,7 @@ template<typename U>
 U *ParticleBpfGpu<T>::HostAllocate( int const &N ) {
     U *    ptr { nullptr };
     size_t bytes { N * sizeof( U ) };
-    checkCudaErrors( cudaHostAlloc( reinterpret_cast<void **>( &ptr ),
-                                    bytes,
-                                    cudaHostAllocWriteCombined ) );
+    CUDA_RT_CALL( cudaHostAlloc( reinterpret_cast<void **>( &ptr ), bytes, cudaHostAllocWriteCombined ) );
     return ( ptr );
 }
 
@@ -431,7 +418,7 @@ template<typename T>
 template<typename U>
 void ParticleBpfGpu<T>::HostMemoryDeleter<U>::operator( )( U *ptr ) {
     if ( ptr ) {
-        checkCudaErrors( cudaFreeHost( ptr ) );
+        CUDA_RT_CALL( cudaFreeHost( ptr ) );
     }
 };
 

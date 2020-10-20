@@ -26,10 +26,29 @@
 #include <lapacke.h>  // LAPACKE_sgetrf, LAPACKE_sgetri
 #include <map>        // std::map
 #include <numeric>    // std::accumulate, std::inner_product
-#include <random>  // std::default_random_engine, std::random_device, std::uniform_real_distribution
+#include <random>     // std::default_random_engine, std::random_device, std::uniform_real_distribution
 #include <stdexcept>  // std::runtime_error
 #include <string>     // std::string
 #include <vector>     // std::vector
+
+// *************** FOR ERROR CHECKING *******************
+#ifndef CUDA_RT_CALL
+#define CUDA_RT_CALL( call )                                                                                           \
+    {                                                                                                                  \
+        auto status = static_cast<cudaError_t>( call );                                                                \
+        if ( status != cudaSuccess )                                                                                   \
+            fprintf( stderr,                                                                                           \
+                     "ERROR: CUDA RT call \"%s\" in line %d of file %s failed "                                        \
+                     "with "                                                                                           \
+                     "%s (%d).\n",                                                                                     \
+                     #call,                                                                                            \
+                     __LINE__,                                                                                         \
+                     __FILE__,                                                                                         \
+                     cudaGetErrorString( status ),                                                                     \
+                     status );                                                                                         \
+    }
+#endif  // CUDA_RT_CALL
+// *************** FOR ERROR CHECKING *******************
 
 /**
  * @brief Contains additional functions used throughout application
@@ -47,8 +66,7 @@ enum class Processor : bool { kCpu, kGpu };
 
 using ProcessorMap = std::map<Processor, std::string>;
 
-static const ProcessorMap processor_map = { { Processor::kCpu, "CPU" },
-                                            { Processor::kGpu, "GPU" } };
+static const ProcessorMap processor_map = { { Processor::kCpu, "CPU" }, { Processor::kGpu, "GPU" } };
 
 /**
  * @enum Timing
@@ -82,8 +100,7 @@ using MethodMap = std::map<Method, std::string>;
 
 static const MethodMap method_map = { { Method::kSystematic, "Systematic" },
                                       { Method::kStratified, "Stratified" },
-                                      { Method::kMetropolisC2,
-                                        "MetropolisC2" } };
+                                      { Method::kMetropolisC2, "MetropolisC2" } };
 
 /**
  * @struct FilterInfo
@@ -113,18 +130,14 @@ typedef struct _matrix {
 
     _matrix( const _matrix &a ) : row( a.row ), col( a.col ), val( a.val ) {};
 
-    _matrix( int const &                         row,
-             int const &                         col,
-             std::initializer_list<float> const &list ) :
-        row( row ),
-        col( col ), val( list ) {}
+    _matrix( int const &row, int const &col, std::initializer_list<float> const &list ) :
+        row( row ), col( col ), val( list ) {}
 
     _matrix( int const &row, int const &col ) : row( row ), col( col ) {
         val.resize( row * col, 0.0f );
     }
 
-    _matrix( int const &row, int const &col, std::vector<float> const val ) :
-        row( row ), col( col ), val( val ) {}
+    _matrix( int const &row, int const &col, std::vector<float> const val ) : row( row ), col( col ), val( val ) {}
 } Matrix;
 
 /**
@@ -152,23 +165,8 @@ inline void MatrixSqrt( utility::Matrix &matrix_a ) {
     std::vector<int>   suppz( 2 * n, 0 );
 
     /* get the eigenvalues and eigenvectors */
-    int info = LAPACKE_ssyevr( LAPACK_ROW_MAJOR,
-                               'V',
-                               'A',
-                               'L',
-                               n,
-                               a,
-                               n,
-                               0,
-                               0,
-                               0,
-                               0,
-                               abstol,
-                               &m,
-                               w.data( ),
-                               z.data( ),
-                               n,
-                               suppz.data( ) );
+    int info = LAPACKE_ssyevr(
+        LAPACK_ROW_MAJOR, 'V', 'A', 'L', n, a, n, 0, 0, 0, 0, abstol, &m, w.data( ), z.data( ), n, suppz.data( ) );
 
     if ( info != 0 ) {
         throw std::runtime_error( "Issue with LAPACKE_ssyevr.\n" );
@@ -187,20 +185,7 @@ inline void MatrixSqrt( utility::Matrix &matrix_a ) {
     float beta { 0.0f };
 
     /* calculate the square root A=B*Z^T */
-    cblas_sgemm( CblasRowMajor,
-                 CblasNoTrans,
-                 CblasTrans,
-                 n,
-                 n,
-                 n,
-                 alpha,
-                 b.data( ),
-                 n,
-                 z.data( ),
-                 n,
-                 beta,
-                 a,
-                 n );
+    cblas_sgemm( CblasRowMajor, CblasNoTrans, CblasTrans, n, n, n, alpha, b.data( ), n, z.data( ), n, beta, a, n );
 }
 
 /**
@@ -213,9 +198,7 @@ inline void MatrixSqrt( utility::Matrix &matrix_a ) {
  * @param[in] matrix_b Structure reference to matrix B
  */
 
-inline void MatrixMult( utility::Matrix &      matrix_c,
-                        utility::Matrix const &matrix_a,
-                        utility::Matrix const &matrix_b ) {
+inline void MatrixMult( utility::Matrix &matrix_c, utility::Matrix const &matrix_a, utility::Matrix const &matrix_b ) {
 
     assert( matrix_a.col == matrix_b.row );
 
@@ -311,9 +294,8 @@ inline void MatrixMult( utility::Matrix &      matrix_d,
  * @param[in] matrix_a Structure reference to matrix A
  * @param[in] vector_b Vector reference to vector B
  */
-inline void MatrixMult( std::vector<float> &      vector_c,
-                        utility::Matrix const &   matrix_a,
-                        std::vector<float> const &vector_b ) {
+inline void
+MatrixMult( std::vector<float> &vector_c, utility::Matrix const &matrix_a, std::vector<float> const &vector_b ) {
 
     assert( matrix_a.col == vector_b.size( ) );
 
@@ -324,18 +306,7 @@ inline void MatrixMult( std::vector<float> &      vector_c,
     float alpha { 1.0f };
     float beta { 0.0f };
 
-    cblas_sgemv( CblasRowMajor,
-                 CblasNoTrans,
-                 matrix_a.row,
-                 matrix_a.col,
-                 alpha,
-                 a,
-                 matrix_a.col,
-                 b,
-                 1,
-                 beta,
-                 c,
-                 1 );
+    cblas_sgemv( CblasRowMajor, CblasNoTrans, matrix_a.row, matrix_a.col, alpha, a, matrix_a.col, b, 1, beta, c, 1 );
 }
 
 /**
@@ -379,9 +350,7 @@ inline void ComputeInverse( utility::Matrix &matrix_a ) {
  * @param[in] lBound Lower bound of distribution
  * @param[in] uBound Upper bound of distribution
  */
-inline void GenerateRandomNum( std::vector<float> &random_numbers,
-                               float const &       lBound,
-                               float const &       uBound ) {
+inline void GenerateRandomNum( std::vector<float> &random_numbers, float const &lBound, float const &uBound ) {
 
     // Random device class instance, source of 'true' randomness for
     // initializing random seed
@@ -392,9 +361,7 @@ inline void GenerateRandomNum( std::vector<float> &random_numbers,
     std::normal_distribution<float> distr( lBound, uBound );
 
     // Compute random numbers for all particles
-    for_each( random_numbers.begin( ),
-              random_numbers.end( ),
-              [&distr, &gen]( float &a ) { a = distr( gen ); } );
+    for_each( random_numbers.begin( ), random_numbers.end( ), [&distr, &gen]( float &a ) { a = distr( gen ); } );
 }
 
 /**
@@ -403,20 +370,15 @@ inline void GenerateRandomNum( std::vector<float> &random_numbers,
  * @param[in/out] time_vector Vector holding times for all Monte Carlos
  * @param[out] median Median time for all Monte Carlos
  */
-inline void ComputeMedianTime( std::vector<float> &time_vector,
-                               float &             median ) {
+inline void ComputeMedianTime( std::vector<float> &time_vector, float &median ) {
     // Compute median
-    std::nth_element( time_vector.begin( ),
-                      time_vector.begin( ) + time_vector.size( ) / 2,
-                      time_vector.end( ) );
+    std::nth_element( time_vector.begin( ), time_vector.begin( ) + time_vector.size( ) / 2, time_vector.end( ) );
     median = time_vector[time_vector.size( ) / 2];
 
     // Remove outliers
     time_vector.erase( std::remove_if( time_vector.begin( ),
                                        time_vector.end( ),
-                                       [&median]( float const &n ) {
-                                           return ( n > ( median * 1.05f ) );
-                                       } ),
+                                       [&median]( float const &n ) { return ( n > ( median * 1.05f ) ); } ),
                        time_vector.end( ) );
 }
 
@@ -426,11 +388,9 @@ inline void ComputeMedianTime( std::vector<float> &time_vector,
  * @param[in] time_vector Vector holding times for all Monte Carlos
  * @param[out] mean Mean time for all Monte Carlos
  */
-inline void ComputeMeanTime( std::vector<float> const &time_vector,
-                             float &                   mean ) {
+inline void ComputeMeanTime( std::vector<float> const &time_vector, float &mean ) {
     // Compute mean
-    mean = std::accumulate( time_vector.begin( ), time_vector.end( ), 0.0f ) /
-           time_vector.size( );
+    mean = std::accumulate( time_vector.begin( ), time_vector.end( ), 0.0f ) / time_vector.size( );
 }
 
 /**
@@ -440,20 +400,15 @@ inline void ComputeMeanTime( std::vector<float> const &time_vector,
  * @param[in] mean Mean time for all Monte Carlos
  * @param[out] stdDev
  */
-inline void ComputeStdDevTime( std::vector<float> const &time_vector,
-                               float const &             mean,
-                               float &                   stdDev ) {
+inline void ComputeStdDevTime( std::vector<float> const &time_vector, float const &mean, float &stdDev ) {
 
     // Compute standard deviation
     std::vector<float> diff( time_vector.size( ) );
-    std::transform( time_vector.begin( ),
-                    time_vector.end( ),
-                    diff.begin( ),
-                    [&mean]( float const &x ) { return ( x - mean ); } );
+    std::transform(
+        time_vector.begin( ), time_vector.end( ), diff.begin( ), [&mean]( float const &x ) { return ( x - mean ); } );
 
     // Compute difference
-    float sqrtSum { std::inner_product(
-        diff.begin( ), diff.end( ), diff.begin( ), 0.0f ) };  // Compute product
+    float sqrtSum { std::inner_product( diff.begin( ), diff.end( ), diff.begin( ), 0.0f ) };  // Compute product
     stdDev = std::sqrt( sqrtSum / time_vector.size( ) );
 }
 
@@ -465,10 +420,7 @@ inline void ComputeStdDevTime( std::vector<float> const &time_vector,
  * @param[in/out] mean
  * @param[in/out] stdDev
  */
-inline void ComputeOverallTiming( std::vector<float> &timeVec,
-                                  float &             median,
-                                  float &             mean,
-                                  float &             stdDev ) {
+inline void ComputeOverallTiming( std::vector<float> &timeVec, float &median, float &mean, float &stdDev ) {
     ComputeMedianTime( timeVec, median );
     ComputeMeanTime( timeVec, mean );
     ComputeStdDevTime( timeVec, mean, stdDev );
@@ -480,19 +432,15 @@ inline void ComputeOverallTiming( std::vector<float> &timeVec,
  * @param[in] timing_results 2D vector containing timing results for each Monte
  * Carlo
  */
-inline void
-PrintTimingResults( std::vector<std::vector<float>> const &timing_results ) {
+inline void PrintTimingResults( std::vector<std::vector<float>> const &timing_results ) {
 
     for ( int i = 0; i < static_cast<int>( utility::Timing::kCount ); i++ ) {
-        std::printf(
-            "%s\t ",
-            utility::timing_map.find( utility::Timing( i ) )->second.c_str( ) );
+        std::printf( "%s\t ", utility::timing_map.find( utility::Timing( i ) )->second.c_str( ) );
     }
     std::printf( "\n" );
 
     for ( int i = 0; i < static_cast<int>( utility::Timing::kCount ); i++ ) {
-        float sum { std::accumulate(
-            timing_results[i].begin( ), timing_results[i].end( ), 0.0f ) };
+        float sum { std::accumulate( timing_results[i].begin( ), timing_results[i].end( ), 0.0f ) };
         float mean { sum / timing_results[i].size( ) };
         std::printf( "%0.0f\t ", mean );
     }
@@ -521,8 +469,7 @@ inline void WriteToFile( std::string const &                          filename,
     for ( int i = 0; i < samples; i++ ) {
         int idxS { i * dim };
         int idxE { idxS + dim };
-        std::copy(
-            it + idxS, it + idxE, std::ostream_iterator<float>( fout, " " ) );
+        std::copy( it + idxS, it + idxE, std::ostream_iterator<float>( fout, " " ) );
         fout << "\n";
     }
     fout.close( );
@@ -555,8 +502,7 @@ inline void WriteToFile( std::string const &                          filename,
     for ( int i = 0; i < samples; i++ ) {
         int idxS { i * utility::kSysDim };
         int idxE { idxS + utility::kSysDim };
-        std::copy(
-            it + idxS, it + idxE, std::ostream_iterator<float>( fout, " " ) );
+        std::copy( it + idxS, it + idxE, std::ostream_iterator<float>( fout, " " ) );
         fout << "\n";
     }
     fout.close( );
@@ -569,10 +515,7 @@ inline void WriteToFile( std::string const &                          filename,
  * @param[in] filename Output filename
  * @param[in] info Struct containing filter information
  */
-inline void WriteTruthHeader( std::string const &filename,
-                              int const &        num_mcs,
-                              int const &        dim,
-                              int const &        samples ) {
+inline void WriteTruthHeader( std::string const &filename, int const &num_mcs, int const &dim, int const &samples ) {
     std::ofstream fout( filename, std::ios_base::trunc );
     fout.setf( std::ios::fixed, std::ios::floatfield );
     fout << num_mcs << " " << dim << " " << samples << "\n";
@@ -585,21 +528,18 @@ inline void WriteTruthHeader( std::string const &filename,
  * @param[in] filename Output filename
  * @param[in] info Struct containing filter information
  */
-inline void WriteDataHeader( std::string const &        filename,
-                             utility::FilterInfo const &filter_info ) {
+inline void WriteDataHeader( std::string const &filename, utility::FilterInfo const &filter_info ) {
     std::ofstream fout( filename, std::ios_base::trunc );
     fout.setf( std::ios::fixed, std::ios::floatfield );
-    fout << filter_info.num_mcs << " " << kSysDim << " " << filter_info.samples
-         << " " << filter_info.particles << "\n";
+    fout << filter_info.num_mcs << " " << kSysDim << " " << filter_info.samples << " " << filter_info.particles << "\n";
     fout.close( );
 }
 
 #ifdef USE_NVTX
 #include "nvtx3/nvToolsExt.h"
 
-uint32_t const colors[] { 0x0000ff00, 0x0f0000ff, 0x000000ff,
-                          0x00ffff00, 0x00ff00ff, 0x0000ffff,
-                          0x00ff0000, 0x00ffffff, 0x0f0f0f0f };
+uint32_t const colors[] { 0x0000ff00, 0x0f0000ff, 0x000000ff, 0x00ffff00, 0x00ff00ff,
+                          0x0000ffff, 0x00ff0000, 0x00ffffff, 0x0f0f0f0f };
 int const      num_colors { sizeof( colors ) / sizeof( uint32_t ) };
 
 /**

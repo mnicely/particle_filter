@@ -51,10 +51,8 @@ class ParticleBpfCpu : public ParticleBase {
      * @param[in] truth_meas_func_ptr Pointer to true measurement data
      */
 
-    ParticleBpfCpu(
-        utility::FilterInfo const &filter_info,
-        std::function<void( int const &idx, float *current_meas_data )> const
-            &truth_meas_func_ptr );
+    ParticleBpfCpu( utility::FilterInfo const &                                            filter_info,
+                    std::function<void( int const &idx, float *current_meas_data )> const &truth_meas_func_ptr );
 
     /**
      * @brief Destroy the ParticleBpfCpu object
@@ -93,8 +91,7 @@ class ParticleBpfCpu : public ParticleBase {
      * @param[out] timing_results 2D vector to hold timing results of all Monte
      * Carlo runs
      */
-    void Initialize( int const &                      mcs,
-                     std::vector<std::vector<float>> &timing_results );
+    void Initialize( int const &mcs, std::vector<std::vector<float>> &timing_results );
 
     /**
      * @brief Function to write filter estimates to output file
@@ -146,26 +143,25 @@ class ParticleBpfCpu : public ParticleBase {
      */
     void ComputeParticleTransition( );
 
-    int const kSysDim;       /**< Quantity of dimensions of the system */
-    int const kMeasDim;      /**< Quantity of dimensions of the measurement */
-    int const kSamples;      /**< Quantity of samples to be processed */
-    int const kNumParticles; /**< The quantity of particles */
+    int const kSysDim;           /**< Quantity of dimensions of the system */
+    int const kMeasDim;          /**< Quantity of dimensions of the measurement */
+    int const kSamples;          /**< Quantity of samples to be processed */
+    int const kNumParticles;     /**< The quantity of particles */
     int const kResamplingMethod; /**< Type of filter: Bootstrap = 0 */
 
     std::vector<float> filtered_estimates_; /**< Vector to store sample
                                                estimations : sysDim * samples */
     std::vector<float> meas_update_;        /**< Vector to store measurement
                                                Updatetime_step at time step */
-    std::vector<float>
-                       meas_estimates_; /**< Vector to store measurement updates : measDim */
-    std::vector<float> meas_errors_; /**< Vector to store measurement errors :
-                                        measDim * particle */
-    std::vector<float> particle_state_;  /**< Vector to store particle state :
-                                            sysDim * particles */
-    std::vector<float> particle_weight_; /**< Vector to store particle weights :
-                                            1 * particles */
-    std::vector<int> resampling_index_;  /**< Vector to store with particles to
-                                            be resampled : 1 * particles */
+    std::vector<float> meas_estimates_;     /**< Vector to store measurement updates : measDim */
+    std::vector<float> meas_errors_;        /**< Vector to store measurement errors :
+                                               measDim * particle */
+    std::vector<float> particle_state_;     /**< Vector to store particle state :
+                                               sysDim * particles */
+    std::vector<float> particle_weight_;    /**< Vector to store particle weights :
+                                               1 * particles */
+    std::vector<int> resampling_index_;     /**< Vector to store with particles to
+                                               be resampled : 1 * particles */
 
     std::function<void( int const &idx, float *current_meas_data )>
         truth_meas_func_ptr_; /**< Function pointer to true measurement data */

@@ -16,9 +16,8 @@
  */
 
 #include <cooperative_groups.h>  // cooperative groups::this_thread_block, cooperative groups::tiled_partition
-#include <cub/cub.cuh>  // cub::CacheModifiedInputIterator, cub::BlockLoad, cub::BlockStore, cub::WarpReduce
-#include <curand_kernel.h>  // curand_init, curand_normal, curand_uniform, curandStateXORWOW_t
-#include <helper_cuda.h>  // checkCudaErrors
+#include <cub/cub.cuh>           // cub::CacheModifiedInputIterator, cub::BlockLoad, cub::BlockStore, cub::WarpReduce
+#include <curand_kernel.h>       // curand_init, curand_normal, curand_uniform, curandStateXORWOW_t
 
 #include "models.h"
 
@@ -26,7 +25,7 @@ namespace cg = cooperative_groups;
 
 constexpr auto kSysDim { utility::kSysDim };    // state dimension
 constexpr auto kMeasDim { utility::kMeasDim };  // measurement dimension
-constexpr auto kMetropolisB { 32 };  // Iterations in Metropolis resampling
+constexpr auto kMetropolisB { 32 };             // Iterations in Metropolis resampling
 constexpr auto kWarpSize { 32 };
 constexpr auto kBlocks { 20 };
 constexpr auto kTAI { 256 };
@@ -52,17 +51,13 @@ __device__ float d_sum_of_particle_weights {};
 
 template<typename T>
 __global__ void __launch_bounds__( kTAI )
-    InitializeFilter( int const                    num_particles,
-                      unsigned long long int const seed,
-                      T *__restrict__ particle_state_new ) {
+    InitializeFilter( int const num_particles, unsigned long long int const seed, T *__restrict__ particle_state_new ) {
 
     auto const block { cg::this_thread_block( ) };
 
-    typedef cub::CacheModifiedInputIterator<cub::LOAD_LDG, T> InputItr;
-    typedef cub::BlockLoad<T, kTAI, kSysDim, cub::BLOCK_LOAD_WARP_TRANSPOSE>
-        BlockLoad;
-    typedef cub::BlockStore<T, kTAI, kSysDim, cub::BLOCK_STORE_WARP_TRANSPOSE>
-        BlockStore;
+    typedef cub::CacheModifiedInputIterator<cub::LOAD_LDG, T>                  InputItr;
+    typedef cub::BlockLoad<T, kTAI, kSysDim, cub::BLOCK_LOAD_WARP_TRANSPOSE>   BlockLoad;
+    typedef cub::BlockStore<T, kTAI, kSysDim, cub::BLOCK_STORE_WARP_TRANSPOSE> BlockStore;
 
     __shared__ union TempStorage {
         typename BlockLoad::TempStorage  load;
@@ -71,8 +66,7 @@ __global__ void __launch_bounds__( kTAI )
 
     unsigned int loop = blockIdx.x * blockDim.x * kSysDim;
 
-    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
-          tid < num_particles;
+    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x; tid < num_particles;
           tid += blockDim.x * gridDim.x ) {
 
         T thread_data[kSysDim] {};
@@ -80,10 +74,7 @@ __global__ void __launch_bounds__( kTAI )
 
         curandState local_state {};
 
-        curand_init( static_cast<unsigned long long int>( seed + tid ),
-                     0,
-                     0,
-                     &local_state );
+        curand_init( static_cast<unsigned long long int>( seed + tid ), 0, 0, &local_state );
 
 #pragma unroll kSysDim
         for ( T &x : random_nums ) {
@@ -95,13 +86,11 @@ __global__ void __launch_bounds__( kTAI )
             thread_data[i] = c_initial_state[i];
 #pragma unroll kSysDim
             for ( int j = 0; j < kSysDim; j++ ) {
-                thread_data[i] +=
-                    c_initial_noise_cov[i * kSysDim + j] * random_nums[j];
+                thread_data[i] += c_initial_noise_cov[i * kSysDim + j] * random_nums[j];
             }
         }
 
-        BlockStore( temp_storage.store )
-            .Store( particle_state_new + loop, thread_data );
+        BlockStore( temp_storage.store ).Store( particle_state_new + loop, thread_data );
 
         block.sync( );
 
@@ -111,11 +100,10 @@ __global__ void __launch_bounds__( kTAI )
 }
 
 template<typename T>
-__global__ void __launch_bounds__( kTME )
-    ComputeMeasErrors( int const num_particles,
-                       T const *__restrict__ particle_state_new,
-                       T *__restrict__ particle_weights,
-                       T *__restrict__ particle_state ) {
+__global__ void __launch_bounds__( kTME ) ComputeMeasErrors( int const num_particles,
+                                                             T const *__restrict__ particle_state_new,
+                                                             T *__restrict__ particle_weights,
+                                                             T *__restrict__ particle_state ) {
 
     auto const block { cg::this_thread_block( ) };
 
@@ -126,12 +114,10 @@ __global__ void __launch_bounds__( kTME )
      * void ComputeParticleTransitionCuda
      */
 
-    typedef cub::CacheModifiedInputIterator<cub::LOAD_LDG, T> InputItr;
-    typedef cub::BlockLoad<T, kTME, kSysDim, cub::BLOCK_LOAD_WARP_TRANSPOSE>
-        BlockLoad;
-    typedef cub::BlockStore<T, kTME, kSysDim, cub::BLOCK_STORE_WARP_TRANSPOSE>
-                                      BlockStore;
-    typedef cub::BlockReduce<T, kTME> BlockReduce;
+    typedef cub::CacheModifiedInputIterator<cub::LOAD_LDG, T>                  InputItr;
+    typedef cub::BlockLoad<T, kTME, kSysDim, cub::BLOCK_LOAD_WARP_TRANSPOSE>   BlockLoad;
+    typedef cub::BlockStore<T, kTME, kSysDim, cub::BLOCK_STORE_WARP_TRANSPOSE> BlockStore;
+    typedef cub::BlockReduce<T, kTME>                                          BlockReduce;
 
     __shared__ union TempStorage {
         typename BlockLoad::TempStorage   load;
@@ -141,16 +127,14 @@ __global__ void __launch_bounds__( kTME )
 
     unsigned int loop { blockIdx.x * blockDim.x * kSysDim };
 
-    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
-          tid < num_particles;
+    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x; tid < num_particles;
           tid += blockDim.x * gridDim.x ) {
 
         T thread_data[kSysDim] {};
         T estimates[kMeasDim] {};
         T errors[kMeasDim] {};
 
-        BlockLoad( temp_storage.load )
-            .Load( InputItr( particle_state_new + loop ), thread_data );
+        BlockLoad( temp_storage.load ).Load( InputItr( particle_state_new + loop ), thread_data );
 
         block.sync( );
 
@@ -176,9 +160,7 @@ __global__ void __launch_bounds__( kTME )
 
         particle_weights[tid] = particle_weight;
 
-        float blockSum {
-            BlockReduce( temp_storage.reduce ).Sum( particle_weight )
-        };
+        float blockSum { BlockReduce( temp_storage.reduce ).Sum( particle_weight ) };
 
         block.sync( );
 
@@ -186,8 +168,7 @@ __global__ void __launch_bounds__( kTME )
             atomicAdd( &d_sum_of_particle_weights, blockSum );
         }
 
-        BlockStore( temp_storage.store )
-            .Store( particle_state + loop, thread_data );
+        BlockStore( temp_storage.store ).Store( particle_state + loop, thread_data );
 
         block.sync( );
 
@@ -197,22 +178,20 @@ __global__ void __launch_bounds__( kTME )
 }
 
 template<typename T>
-__global__ void __launch_bounds__( kTCE )
-    ComputeEstimates( int const num_particles,
-                      int const time_step,
-                      int const resampling_method,
-                      T const *__restrict__ particle_state,
-                      T *__restrict__ filtered_estimates,
-                      T *__restrict__ particle_weights ) {
+__global__ void __launch_bounds__( kTCE ) ComputeEstimates( int const num_particles,
+                                                            int const time_step,
+                                                            int const resampling_method,
+                                                            T const *__restrict__ particle_state,
+                                                            T *__restrict__ filtered_estimates,
+                                                            T *__restrict__ particle_weights ) {
 
     auto const block   = cg::this_thread_block( );
     auto const tile_32 = cg::tiled_partition( block, 32 );
     auto const laneID  = tile_32.thread_rank( );
 
-    typedef cub::CacheModifiedInputIterator<cub::LOAD_LDG, T> InputItr;
-    typedef cub::BlockLoad<T, kTCE, kSysDim, cub::BLOCK_LOAD_WARP_TRANSPOSE>
-                               BlockLoad;
-    typedef cub::WarpReduce<T> WarpReduce;
+    typedef cub::CacheModifiedInputIterator<cub::LOAD_LDG, T>                InputItr;
+    typedef cub::BlockLoad<T, kTCE, kSysDim, cub::BLOCK_LOAD_WARP_TRANSPOSE> BlockLoad;
+    typedef cub::WarpReduce<T>                                               WarpReduce;
 
     __shared__ union TempStorage {
         typename BlockLoad::TempStorage  load;
@@ -227,8 +206,7 @@ __global__ void __launch_bounds__( kTCE )
 
     unsigned int loop { blockIdx.x * blockDim.x * kSysDim };
 
-    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
-          tid < num_particles;
+    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x; tid < num_particles;
           tid += blockDim.x * gridDim.x ) {
 
         if ( warp_id == 0 ) {
@@ -240,8 +218,7 @@ __global__ void __launch_bounds__( kTCE )
         T normalized { particle_weights[tid] / d_sum_of_particle_weights };
 
         // Load a segment of consecutive items that are blocked across threads
-        BlockLoad( temp_storage.load )
-            .Load( InputItr( particle_state + loop ), thread_data );
+        BlockLoad( temp_storage.load ).Load( InputItr( particle_state + loop ), thread_data );
 
         block.sync( );
 
@@ -251,8 +228,7 @@ __global__ void __launch_bounds__( kTCE )
             thread_data[i] *= normalized;
 
             // Each warp perform reduction
-            val = WarpReduce( temp_storage.warpReduce[warp_id] )
-                      .Sum( thread_data[i] );
+            val = WarpReduce( temp_storage.warpReduce[warp_id] ).Sum( thread_data[i] );
 
             // Write reduced value to shared memory
             if ( laneID == 0 ) {
@@ -263,8 +239,7 @@ __global__ void __launch_bounds__( kTCE )
 
             // Read from shared memory only if that warp existed
             if ( warp_id == 0 ) {
-                val = WarpReduce( temp_storage.warpReduce[0] )
-                          .Sum( s_partial_reduce[laneID] );
+                val = WarpReduce( temp_storage.warpReduce[0] ).Sum( s_partial_reduce[laneID] );
             }
 
             if ( threadIdx.x == 0 ) {
@@ -281,14 +256,12 @@ __global__ void __launch_bounds__( kTCE )
          * For Metropolis, we normalize for filter estimates but don't store
          * normalized weights back to global.
          */
-        if ( resampling_method !=
-             static_cast<int>( utility::Method::kMetropolisC2 ) ) {
+        if ( resampling_method != static_cast<int>( utility::Method::kMetropolisC2 ) ) {
             particle_weights[tid] = normalized;
         }
 
         if ( threadIdx.x < kSysDim ) {
-            atomicAdd( &filtered_estimates[time_step * kSysDim + laneID],
-                       s_final_reduce[laneID] );
+            atomicAdd( &filtered_estimates[time_step * kSysDim + laneID], s_final_reduce[laneID] );
         }
 
         // grid size * number of system states
@@ -297,14 +270,13 @@ __global__ void __launch_bounds__( kTCE )
 }
 
 template<typename T>
-__device__ void
-ResamplingUpPerWarp( cg::thread_block_tile<kWarpSize> const &tile_32,
-                     unsigned int const &                    tid,
-                     int const &                             num_particles,
-                     T const &                               distro,
-                     T *                                     shared,
-                     T *__restrict__ prefix_sum,
-                     int *__restrict__ resampling_index_up ) {
+__device__ void ResamplingUpPerWarp( cg::thread_block_tile<kWarpSize> const &tile_32,
+                                     unsigned int const &                    tid,
+                                     int const &                             num_particles,
+                                     T const &                               distro,
+                                     T *                                     shared,
+                                     T *__restrict__ prefix_sum,
+                                     int *__restrict__ resampling_index_up ) {
 
     T const    tidf { static_cast<T>( tid ) };
     auto const t { tile_32.thread_rank( ) };
@@ -361,15 +333,13 @@ ResamplingUpPerWarp( cg::thread_block_tile<kWarpSize> const &tile_32,
 
 template<typename T>
 __global__ void __launch_bounds__( kTRI )
-    ComputeResampleIndexSysUpSharedPrefetch64(
-        int const                    num_particles,
-        unsigned long long int const seed,
-        int const                    resampling_method,
-        int *__restrict__ resampling_index_up,
-        T *__restrict__ prefix_sum ) {
+    ComputeResampleIndexSysUpSharedPrefetch64( int const                    num_particles,
+                                               unsigned long long int const seed,
+                                               int const                    resampling_method,
+                                               int *__restrict__ resampling_index_up,
+                                               T *__restrict__ prefix_sum ) {
 
-    auto const tile_32 =
-        cg::tiled_partition<kWarpSize>( cg::this_thread_block( ) );
+    auto const tile_32 = cg::tiled_partition<kWarpSize>( cg::this_thread_block( ) );
 
     __shared__ T s_warp_0[kTRI];
     __shared__ T s_warp_1[kTRI];
@@ -380,53 +350,37 @@ __global__ void __launch_bounds__( kTRI )
         prefix_sum[num_particles - 1] = 1.0f;  //
     }
 
-    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
-          tid < num_particles;
+    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x; tid < num_particles;
           tid += blockDim.x * gridDim.x ) {
 
         curandStateXORWOW_t local_state {};
 
         T distro {};
 
-        if ( resampling_method ==
-             static_cast<int>( utility::Method::kSystematic ) ) {
+        if ( resampling_method == static_cast<int>( utility::Method::kSystematic ) ) {
             curand_init( seed, 0, 0, &local_state );
             distro = curand_uniform( &local_state );
-        } else if ( resampling_method ==
-                    static_cast<int>( utility::Method::kStratified ) ) {
+        } else if ( resampling_method == static_cast<int>( utility::Method::kStratified ) ) {
             curand_init( seed + tid, 0, 0, &local_state );
             distro = curand_uniform( &local_state );
         }
 
         if ( threadIdx.x < kWarpSize ) {
-            ResamplingUpPerWarp( tile_32,
-                                 tid,
-                                 num_particles,
-                                 distro,
-                                 s_warp_0,
-                                 prefix_sum,
-                                 resampling_index_up );
+            ResamplingUpPerWarp( tile_32, tid, num_particles, distro, s_warp_0, prefix_sum, resampling_index_up );
         } else {
-            ResamplingUpPerWarp( tile_32,
-                                 tid,
-                                 num_particles,
-                                 distro,
-                                 s_warp_1,
-                                 prefix_sum,
-                                 resampling_index_up );
+            ResamplingUpPerWarp( tile_32, tid, num_particles, distro, s_warp_1, prefix_sum, resampling_index_up );
         }
     }
 }
 
 template<typename T>
-__device__ void
-ResamplingDownPerWarp( cg::thread_block_tile<kWarpSize> const &tile_32,
-                       unsigned int const &                    tid,
-                       int const &                             num_particles,
-                       T const &                               distro,
-                       T *                                     shared,
-                       T *__restrict__ prefix_sum,
-                       int *__restrict__ resampling_index_down ) {
+__device__ void ResamplingDownPerWarp( cg::thread_block_tile<kWarpSize> const &tile_32,
+                                       unsigned int const &                    tid,
+                                       int const &                             num_particles,
+                                       T const &                               distro,
+                                       T *                                     shared,
+                                       T *__restrict__ prefix_sum,
+                                       int *__restrict__ resampling_index_down ) {
 
     T const    tidf { static_cast<T>( tid ) };
     auto const t { tile_32.thread_rank( ) };
@@ -489,15 +443,13 @@ ResamplingDownPerWarp( cg::thread_block_tile<kWarpSize> const &tile_32,
 
 template<typename T>
 __global__ void __launch_bounds__( kTRI )
-    ComputeResampleIndexSysDownSharedPrefetch64(
-        int const                    num_particles,
-        unsigned long long int const seed,
-        int const                    resampling_method,
-        int *__restrict__ resampling_index_down,
-        T *__restrict__ prefix_sum ) {
+    ComputeResampleIndexSysDownSharedPrefetch64( int const                    num_particles,
+                                                 unsigned long long int const seed,
+                                                 int const                    resampling_method,
+                                                 int *__restrict__ resampling_index_down,
+                                                 T *__restrict__ prefix_sum ) {
 
-    auto const tile_32 =
-        cg::tiled_partition<kWarpSize>( cg::this_thread_block( ) );
+    auto const tile_32 = cg::tiled_partition<kWarpSize>( cg::this_thread_block( ) );
 
     __shared__ T s_warp_0[kTRI];
     __shared__ T s_warp_1[kTRI];
@@ -508,53 +460,36 @@ __global__ void __launch_bounds__( kTRI )
         prefix_sum[num_particles - 1] = 1.0f;
     }
 
-    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
-          tid < num_particles;
+    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x; tid < num_particles;
           tid += blockDim.x * gridDim.x ) {
 
         curandStateXORWOW_t local_state {};
 
         T distro {};
 
-        if ( resampling_method ==
-             static_cast<int>( utility::Method::kSystematic ) ) {
+        if ( resampling_method == static_cast<int>( utility::Method::kSystematic ) ) {
             curand_init( seed, 0, 0, &local_state );
             distro = curand_uniform( &local_state );
-        } else if ( resampling_method ==
-                    static_cast<int>( utility::Method::kStratified ) ) {
+        } else if ( resampling_method == static_cast<int>( utility::Method::kStratified ) ) {
             curand_init( seed + tid, 0, 0, &local_state );
             distro = curand_uniform( &local_state );
         }
 
         if ( threadIdx.x < kWarpSize ) {
-            ResamplingDownPerWarp( tile_32,
-                                   tid,
-                                   num_particles,
-                                   distro,
-                                   s_warp_0,
-                                   prefix_sum,
-                                   resampling_index_down );
+            ResamplingDownPerWarp( tile_32, tid, num_particles, distro, s_warp_0, prefix_sum, resampling_index_down );
         } else {
-            ResamplingDownPerWarp( tile_32,
-                                   tid,
-                                   num_particles,
-                                   distro,
-                                   s_warp_1,
-                                   prefix_sum,
-                                   resampling_index_down );
+            ResamplingDownPerWarp( tile_32, tid, num_particles, distro, s_warp_1, prefix_sum, resampling_index_down );
         }
     }
 }
 
 template<typename T>
-__global__ void __launch_bounds__( kTMR ) ComputeResampleIndexMetropolisC2(
-    int const                    num_particles,
-    unsigned long long int const seed,
-    T const *__restrict__ particle_weights,
-    int *__restrict__ resampling_index_down ) {
+__global__ void __launch_bounds__( kTMR ) ComputeResampleIndexMetropolisC2( int const                    num_particles,
+                                                                            unsigned long long int const seed,
+                                                                            T const *__restrict__ particle_weights,
+                                                                            int *__restrict__ resampling_index_down ) {
 
-    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
-          tid < num_particles;
+    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x; tid < num_particles;
           tid += blockDim.x * gridDim.x ) {
 
         unsigned int idx { tid };
@@ -567,9 +502,7 @@ __global__ void __launch_bounds__( kTMR ) ComputeResampleIndexMetropolisC2(
 
         curandStateXORWOW_t    local_state {};
         curandStateXORWOW_t    rand_state {};
-        unsigned long long int local_seed {
-            static_cast<unsigned long long int>( tid >> 5 ) + seed
-        };
+        unsigned long long int local_seed { static_cast<unsigned long long int>( tid >> 5 ) + seed };
 
         // same random number for 0-based warp entire grid
         curand_init( local_seed, 0, 0, &local_state );
@@ -582,15 +515,13 @@ __global__ void __launch_bounds__( kTMR ) ComputeResampleIndexMetropolisC2(
 
         for ( int i = 0; i < kMetropolisB; i++ ) {
 
-            warp = static_cast<unsigned int>(
-                curand_uniform( &local_state ) *
-                ( sc - 1 ) );  // Random number [0 -> number of warps]
+            warp = static_cast<unsigned int>( curand_uniform( &local_state ) *
+                                              ( sc - 1 ) );  // Random number [0 -> number of warps]
 
             random_num = curand_uniform( &rand_state );
-            key = static_cast<unsigned int>( curand_uniform( &rand_state ) *
-                                             ( dc - 1 ) );
-            key = warp * dc + key;
-            num = particle_weights[key];
+            key        = static_cast<unsigned int>( curand_uniform( &rand_state ) * ( dc - 1 ) );
+            key        = warp * dc + key;
+            num        = particle_weights[key];
 
             if ( random_num <= ( num / den ) ) {
                 den = num;
@@ -602,33 +533,28 @@ __global__ void __launch_bounds__( kTMR ) ComputeResampleIndexMetropolisC2(
 }
 
 template<typename T>
-__global__ void __launch_bounds__( kTPT )
-    ComputeParticleTransition( int const                    num_particles,
-                               unsigned long long int const seed,
-                               int const                    resampling_method,
-                               int const *__restrict__ resampling_index_up,
-                               int const *__restrict__ resampling_index_down,
-                               T const *__restrict__ particle_state,
-                               T *__restrict__ particle_state_new ) {
+__global__ void __launch_bounds__( kTPT ) ComputeParticleTransition( int const                    num_particles,
+                                                                     unsigned long long int const seed,
+                                                                     int const                    resampling_method,
+                                                                     int const *__restrict__ resampling_index_up,
+                                                                     int const *__restrict__ resampling_index_down,
+                                                                     T const *__restrict__ particle_state,
+                                                                     T *__restrict__ particle_state_new ) {
 
     auto const block { cg::this_thread_block( ) };
 
-    typedef cub::BlockStore<T, kTPT, kSysDim, cub::BLOCK_STORE_WARP_TRANSPOSE>
-        BlockStore;
+    typedef cub::BlockStore<T, kTPT, kSysDim, cub::BLOCK_STORE_WARP_TRANSPOSE> BlockStore;
 
     __shared__ typename BlockStore::TempStorage temp_storage;
 
     unsigned int loop { blockIdx.x * blockDim.x * kSysDim };
 
-    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
-          tid < num_particles;
+    for ( unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x; tid < num_particles;
           tid += blockDim.x * gridDim.x ) {
 
         int idx {};
-        if ( resampling_method !=
-             static_cast<int>( utility::Method::kMetropolisC2 ) ) {
-            idx = static_cast<int>( tid ) + resampling_index_up[tid] +
-                  resampling_index_down[tid];
+        if ( resampling_method != static_cast<int>( utility::Method::kMetropolisC2 ) ) {
+            idx = static_cast<int>( tid ) + resampling_index_up[tid] + resampling_index_down[tid];
         } else {
             idx = resampling_index_down[tid];
         }
@@ -639,10 +565,7 @@ __global__ void __launch_bounds__( kTPT )
 
         curandState local_state {};
 
-        curand_init( static_cast<unsigned long long int>( seed + tid ),
-                     0,
-                     0,
-                     &local_state );
+        curand_init( static_cast<unsigned long long int>( seed + tid ), 0, 0, &local_state );
 
 #pragma unroll kSysDim
         for ( int i = 0; i < kSysDim; i++ ) {
@@ -658,13 +581,11 @@ __global__ void __launch_bounds__( kTPT )
             thread_data[i] = model_update[i];
 #pragma unroll kSysDim
             for ( int j = 0; j < kSysDim; j++ ) {
-                thread_data[i] +=
-                    c_process_noise_cov[i * kSysDim + j] * random_nums[j];
+                thread_data[i] += c_process_noise_cov[i * kSysDim + j] * random_nums[j];
             }
         }
 
-        BlockStore( temp_storage )
-            .Store( particle_state_new + loop, thread_data );
+        BlockStore( temp_storage ).Store( particle_state_new + loop, thread_data );
 
         block.sync( );
 
@@ -685,27 +606,19 @@ void InitializeFilterCuda( int const &         sm_count,
     int const threads_per_block { kTAI };
     int const blocks_per_grid { kBlocks * sm_count };
 
-    unsigned long long int seed { static_cast<unsigned long long int>(
-        clock( ) ) };
+    unsigned long long int seed { static_cast<unsigned long long int>( clock( ) ) };
 
-    checkCudaErrors( cudaMemcpyToSymbolAsync( c_initial_noise_cov,
-                                              pin_sq_initial_noise_cov,
-                                              kSysDim * kSysDim * sizeof( T ),
-                                              0,
-                                              cudaMemcpyHostToDevice,
-                                              streams[0] ) );
+    CUDA_RT_CALL( cudaMemcpyToSymbolAsync( c_initial_noise_cov,
+                                           pin_sq_initial_noise_cov,
+                                           kSysDim * kSysDim * sizeof( T ),
+                                           0,
+                                           cudaMemcpyHostToDevice,
+                                           streams[0] ) );
 
-    void *args[] { const_cast<int *>( &num_particles ),
-                   &seed,
-                   &particle_state_new };
+    void *args[] { const_cast<int *>( &num_particles ), &seed, &particle_state_new };
 
-    checkCudaErrors(
-        cudaLaunchKernel( reinterpret_cast<void *>( &InitializeFilter<T> ),
-                          blocks_per_grid,
-                          threads_per_block,
-                          args,
-                          0,
-                          streams[0] ) );
+    CUDA_RT_CALL( cudaLaunchKernel(
+        reinterpret_cast<void *>( &InitializeFilter<T> ), blocks_per_grid, threads_per_block, args, 0, streams[0] ) );
 }
 
 template<typename T>
@@ -722,36 +635,24 @@ void ComputeMeasErrorsCuda( int const &         sm_count,
     int const threads_per_block { kTME };
     int const blocks_per_grid { kBlocks * sm_count };
 
-    checkCudaErrors( cudaMemcpyToSymbolAsync( c_inv_meas_noise_cov,
-                                              pin_inv_meas_noise_cov,
-                                              kMeasDim * kMeasDim * sizeof( T ),
-                                              0,
-                                              cudaMemcpyHostToDevice,
-                                              streams[1] ) );
-    checkCudaErrors( cudaEventRecord( events[1], streams[1] ) );
+    CUDA_RT_CALL( cudaMemcpyToSymbolAsync( c_inv_meas_noise_cov,
+                                           pin_inv_meas_noise_cov,
+                                           kMeasDim * kMeasDim * sizeof( T ),
+                                           0,
+                                           cudaMemcpyHostToDevice,
+                                           streams[1] ) );
+    CUDA_RT_CALL( cudaEventRecord( events[1], streams[1] ) );
 
-    checkCudaErrors( cudaMemcpyToSymbolAsync( c_meas_update,
-                                              pin_meas_update,
-                                              kMeasDim * sizeof( T ),
-                                              0,
-                                              cudaMemcpyHostToDevice,
-                                              streams[0] ) );
+    CUDA_RT_CALL( cudaMemcpyToSymbolAsync(
+        c_meas_update, pin_meas_update, kMeasDim * sizeof( T ), 0, cudaMemcpyHostToDevice, streams[0] ) );
 
     // Wait for cudaMemcpyToSymbolAsync -> c_inv_meas_noise_cov
-    checkCudaErrors( cudaStreamWaitEvent( streams[0], events[1], 0 ) );
+    CUDA_RT_CALL( cudaStreamWaitEvent( streams[0], events[1], 0 ) );
 
-    void *args[] { const_cast<int *>( &num_particles ),
-                   &particle_state_new,
-                   &particle_weights,
-                   &particle_state };
+    void *args[] { const_cast<int *>( &num_particles ), &particle_state_new, &particle_weights, &particle_state };
 
-    checkCudaErrors(
-        cudaLaunchKernel( reinterpret_cast<void *>( &ComputeMeasErrors<T> ),
-                          blocks_per_grid,
-                          threads_per_block,
-                          args,
-                          0,
-                          streams[0] ) );
+    CUDA_RT_CALL( cudaLaunchKernel(
+        reinterpret_cast<void *>( &ComputeMeasErrors<T> ), blocks_per_grid, threads_per_block, args, 0, streams[0] ) );
 }
 
 template<typename T>
@@ -775,13 +676,8 @@ void ComputeEstimatesCuda( int const &         sm_count,
                    &filtered_estimates,
                    &particle_weights };
 
-    checkCudaErrors(
-        cudaLaunchKernel( reinterpret_cast<void *>( &ComputeEstimates<T> ),
-                          blocks_per_grid,
-                          threads_per_block,
-                          args,
-                          0,
-                          streams[0] ) );
+    CUDA_RT_CALL( cudaLaunchKernel(
+        reinterpret_cast<void *>( &ComputeEstimates<T> ), blocks_per_grid, threads_per_block, args, 0, streams[0] ) );
 }
 
 template<typename T>
@@ -796,12 +692,10 @@ void ComputeResampleIndexCuda( int const &         sm_count,
                                int *               resampling_index_up,
                                int *               resampling_index_down ) {
 
-    unsigned long long int seed { static_cast<unsigned long long int>(
-        clock( ) ) };
+    unsigned long long int seed { static_cast<unsigned long long int>( clock( ) ) };
 
     // If Systematic and Stratified
-    if ( resampling_method !=
-         static_cast<int>( utility::Method::kMetropolisC2 ) ) {
+    if ( resampling_method != static_cast<int>( utility::Method::kMetropolisC2 ) ) {
 
         int const threads_per_block { kTRI };
 
@@ -829,7 +723,7 @@ void ComputeResampleIndexCuda( int const &         sm_count,
                                        false );
 
         // Allocate temporary storage
-        checkCudaErrors( cudaMalloc( &d_temp_storage, temp_storage_bytes ) );
+        CUDA_RT_CALL( cudaMalloc( &d_temp_storage, temp_storage_bytes ) );
 
         // Run inclusive prefix sum
         cub::DeviceScan::InclusiveSum( d_temp_storage,
@@ -841,7 +735,7 @@ void ComputeResampleIndexCuda( int const &         sm_count,
                                        false );
 
         // Sync cumulative sum
-        checkCudaErrors( cudaEventRecord( events[1], streams[0] ) );
+        CUDA_RT_CALL( cudaEventRecord( events[1], streams[0] ) );
 
         void *args_up[] { const_cast<int *>( &num_particles ),
                           &seed,
@@ -849,17 +743,14 @@ void ComputeResampleIndexCuda( int const &         sm_count,
                           &resampling_index_up,
                           &prefix_sum_particle_weights };
 
-        checkCudaErrors( cudaLaunchKernel(
-            reinterpret_cast<void *>(
-                &ComputeResampleIndexSysUpSharedPrefetch64<T> ),
-            blocks_per_grid,
-            threads_per_block,
-            args_up,
-            0,
-            streams[0] ) );
+        CUDA_RT_CALL( cudaLaunchKernel( reinterpret_cast<void *>( &ComputeResampleIndexSysUpSharedPrefetch64<T> ),
+                                        blocks_per_grid,
+                                        threads_per_block,
+                                        args_up,
+                                        0,
+                                        streams[0] ) );
 
-        checkCudaErrors( cudaStreamWaitEvent(
-            streams[1], events[1], 0 ) );  // Wait for InclusiveSum
+        CUDA_RT_CALL( cudaStreamWaitEvent( streams[1], events[1], 0 ) );  // Wait for InclusiveSum
 
         void *args_down[] { const_cast<int *>( &num_particles ),
                             &seed,
@@ -867,36 +758,30 @@ void ComputeResampleIndexCuda( int const &         sm_count,
                             &resampling_index_down,
                             &prefix_sum_particle_weights };
 
-        checkCudaErrors( cudaLaunchKernel(
-            reinterpret_cast<void *>(
-                &ComputeResampleIndexSysDownSharedPrefetch64<T> ),
-            blocks_per_grid,
-            threads_per_block,
-            args_down,
-            0,
-            streams[1] ) );
+        CUDA_RT_CALL( cudaLaunchKernel( reinterpret_cast<void *>( &ComputeResampleIndexSysDownSharedPrefetch64<T> ),
+                                        blocks_per_grid,
+                                        threads_per_block,
+                                        args_down,
+                                        0,
+                                        streams[1] ) );
 
-        checkCudaErrors( cudaEventRecord( events[0], streams[1] ) );
+        CUDA_RT_CALL( cudaEventRecord( events[0], streams[1] ) );
 
     } else {
 
         int const threads_per_block { kTMR };
         int const blocks_per_grid { kBlocks * sm_count };
 
-        void *args[] { const_cast<int *>( &num_particles ),
-                       &seed,
-                       &particle_weights,
-                       &resampling_index_down };
+        void *args[] { const_cast<int *>( &num_particles ), &seed, &particle_weights, &resampling_index_down };
 
-        checkCudaErrors( cudaLaunchKernel(
-            reinterpret_cast<void *>( &ComputeResampleIndexMetropolisC2<T> ),
-            blocks_per_grid,
-            threads_per_block,
-            args,
-            0,
-            streams[0] ) );
+        CUDA_RT_CALL( cudaLaunchKernel( reinterpret_cast<void *>( &ComputeResampleIndexMetropolisC2<T> ),
+                                        blocks_per_grid,
+                                        threads_per_block,
+                                        args,
+                                        0,
+                                        streams[0] ) );
 
-        checkCudaErrors( cudaEventRecord( events[0], streams[0] ) );
+        CUDA_RT_CALL( cudaEventRecord( events[0], streams[0] ) );
     }
 }
 
@@ -905,30 +790,28 @@ void ComputeParticleTransitionCuda( int const &         sm_count,
                                     cudaStream_t const *streams,
                                     int const &         num_particles,
                                     int const &         resampling_method,
-                                    T const *    pin_sq_process_noise_cov,
-                                    T const *    particle_state,
-                                    int const *  resampling_index_up,
-                                    int const *  resampling_index_down,
-                                    cudaEvent_t *events,
-                                    T *          particle_state_new ) {
+                                    T const *           pin_sq_process_noise_cov,
+                                    T const *           particle_state,
+                                    int const *         resampling_index_up,
+                                    int const *         resampling_index_down,
+                                    cudaEvent_t *       events,
+                                    T *                 particle_state_new ) {
 
     // Get d_sum_of_particle_weights address for reset
     float *h_sum_of_particle_weights;
-    checkCudaErrors( cudaGetSymbolAddress(
-        ( void ** )&h_sum_of_particle_weights, d_sum_of_particle_weights ) );
+    CUDA_RT_CALL( cudaGetSymbolAddress( ( void ** )&h_sum_of_particle_weights, d_sum_of_particle_weights ) );
 
-    unsigned long long int seed { static_cast<unsigned long long int>(
-        clock( ) ) };
+    unsigned long long int seed { static_cast<unsigned long long int>( clock( ) ) };
 
     int const threads_per_block { kTPT };
     int const blocks_per_grid { kBlocks * sm_count };
 
-    checkCudaErrors( cudaMemcpyToSymbolAsync( c_process_noise_cov,
-                                              pin_sq_process_noise_cov,
-                                              kSysDim * kSysDim * sizeof( T ),
-                                              0,
-                                              cudaMemcpyHostToDevice,
-                                              streams[0] ) );
+    CUDA_RT_CALL( cudaMemcpyToSymbolAsync( c_process_noise_cov,
+                                           pin_sq_process_noise_cov,
+                                           kSysDim * kSysDim * sizeof( T ),
+                                           0,
+                                           cudaMemcpyHostToDevice,
+                                           streams[0] ) );
 
     void *args[] { const_cast<int *>( &num_particles ),
                    &seed,
@@ -940,79 +823,73 @@ void ComputeParticleTransitionCuda( int const &         sm_count,
 
     // Systematic and Stratified must wait on
     // ComputeResampleIndexSysDownSharedPrefetch64
-    if ( resampling_method !=
-         static_cast<int>( utility::Method::kMetropolisC2 ) ) {
-        checkCudaErrors( cudaStreamWaitEvent( streams[0], events[0], 0 ) );
+    if ( resampling_method != static_cast<int>( utility::Method::kMetropolisC2 ) ) {
+        CUDA_RT_CALL( cudaStreamWaitEvent( streams[0], events[0], 0 ) );
     }  // Wait for ComputeResampleIndexSysDownSharedPrefetch64
     else {
-        checkCudaErrors( cudaStreamWaitEvent( streams[1], events[0], 0 ) );
+        CUDA_RT_CALL( cudaStreamWaitEvent( streams[1], events[0], 0 ) );
     }  // Wait for ComputeResampleIndexMetropolisC2
 
     // Reset d_sum_of_particle_weights before next time step
     // If Metropolis, make sure it's not reset before ComputeEstimates is
     // finished
-    checkCudaErrors( cudaMemsetAsync(
-        h_sum_of_particle_weights, 0, sizeof( T ), streams[1] ) );
+    CUDA_RT_CALL( cudaMemsetAsync( h_sum_of_particle_weights, 0, sizeof( T ), streams[1] ) );
 
-    checkCudaErrors( cudaLaunchKernel(
-        reinterpret_cast<void *>( &ComputeParticleTransition<T> ),
-        blocks_per_grid,
-        threads_per_block,
-        args,
-        0,
-        streams[0] ) );
+    CUDA_RT_CALL( cudaLaunchKernel( reinterpret_cast<void *>( &ComputeParticleTransition<T> ),
+                                    blocks_per_grid,
+                                    threads_per_block,
+                                    args,
+                                    0,
+                                    streams[0] ) );
 }
 
 // Explicit specializations needed to generate code
-template void
-InitializeFilterCuda<float>( int const &         sm_count,
-                             cudaStream_t const *streams,
-                             int const &         num_particles,
-                             float const *       pin_sq_initial_noise_cov,
-                             cudaEvent_t *       events,
-                             float *             particle_state_new );
+template void InitializeFilterCuda<float>( int const &         sm_count,
+                                           cudaStream_t const *streams,
+                                           int const &         num_particles,
+                                           float const *       pin_sq_initial_noise_cov,
+                                           cudaEvent_t *       events,
+                                           float *             particle_state_new );
 
 template void ComputeMeasErrorsCuda<float>( int const &         sm_count,
                                             cudaStream_t const *streams,
                                             int const &         num_particles,
-                                            float const *pin_inv_meas_noise_cov,
-                                            float const *pin_meas_update,
-                                            float const *particle_state_new,
-                                            cudaEvent_t *events,
-                                            float *      particle_weights,
-                                            float *      particle_state );
+                                            float const *       pin_inv_meas_noise_cov,
+                                            float const *       pin_meas_update,
+                                            float const *       particle_state_new,
+                                            cudaEvent_t *       events,
+                                            float *             particle_weights,
+                                            float *             particle_state );
 
 template void ComputeEstimatesCuda<float>( int const &         sm_count,
                                            cudaStream_t const *streams,
                                            int const &         num_particles,
                                            int const &         time_step,
-                                           int const &  resampling_method,
-                                           float const *particle_state,
-                                           cudaEvent_t *events,
-                                           float *      filtered_estimates,
-                                           float *      particle_weights );
+                                           int const &         resampling_method,
+                                           float const *       particle_state,
+                                           cudaEvent_t *       events,
+                                           float *             filtered_estimates,
+                                           float *             particle_weights );
 
-template void
-ComputeResampleIndexCuda<float>( int const &         sm_count,
-                                 cudaStream_t const *streams,
-                                 int const &         num_particles,
-                                 int const &         time_step,
-                                 int const &         resampling_method,
-                                 float const *       particle_weights,
-                                 float *      prefix_sum_particle_weights,
-                                 cudaEvent_t *events,
-                                 int *        resampling_index_up,
-                                 int *        resampling_index_down );
+template void ComputeResampleIndexCuda<float>( int const &         sm_count,
+                                               cudaStream_t const *streams,
+                                               int const &         num_particles,
+                                               int const &         time_step,
+                                               int const &         resampling_method,
+                                               float const *       particle_weights,
+                                               float *             prefix_sum_particle_weights,
+                                               cudaEvent_t *       events,
+                                               int *               resampling_index_up,
+                                               int *               resampling_index_down );
 
-template void
-ComputeParticleTransitionCuda<float>( int const &         sm_count,
-                                      cudaStream_t const *streams,
-                                      int const &         num_particles,
-                                      int const &         resampling_method,
-                                      float const *pin_sq_process_noise_cov,
-                                      float const *particle_state,
-                                      int const *  resampling_index_up,
-                                      int const *  resampling_index_down,
-                                      cudaEvent_t *events,
-                                      float *      particle_state_new );
+template void ComputeParticleTransitionCuda<float>( int const &         sm_count,
+                                                    cudaStream_t const *streams,
+                                                    int const &         num_particles,
+                                                    int const &         resampling_method,
+                                                    float const *       pin_sq_process_noise_cov,
+                                                    float const *       particle_state,
+                                                    int const *         resampling_index_up,
+                                                    int const *         resampling_index_down,
+                                                    cudaEvent_t *       events,
+                                                    float *             particle_state_new );
 } /* namespace filters */
